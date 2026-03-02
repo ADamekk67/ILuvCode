@@ -18,7 +18,7 @@ White = (255, 255, 255)
 
 # Object Player
 Sphere_radius = 25 # Nastaví velikost čtverce
-Sphere_color = (255, 0, 0)
+Sphere_color = (0, 255, 0)
 Sphere_x = Width // 2 - Sphere_radius // 2 # Vycentruje X souřadnici
 Sphere_y = Height // 2 - Sphere_radius // 2 # Vycentruje Y souřadnici
 rychlost = 5 # Nastaví rychlost pohybu
@@ -28,13 +28,21 @@ Coin_size = 20
 Coin_color = (255, 215, 0) # Gold color for the coin
 Coin_x = Width // 2 - Coin_size // 2 # Default X pos
 Coin_y = Height // 3 - Coin_size // 2 # Default Y pos
-coin_collected = False # Track if coin has been collected
+Coin_collected = False # Track if coin has been collected
 
 
 
 # Boss Settings
-Boss_triangle_size = 40
+Boss_triangle_size = 160
+Boss_triangle_color = (255 ,0 ,0) 
+Boss_triangle_x = (Width // 2 - Boss_triangle_size // 2)
+Boss_Speed = 6
 
+# start above the window so the boss slides in
+Boss_triangle_start_y = -Boss_triangle_size
+Boss_triangle_y = Boss_triangle_start_y
+Boss_triangle_target_y = (Height // 4 - Boss_triangle_size)
+Boss_entry_speed = 3  # pixels per frame for the entrance animation
 # Enemy Settings
 EnemyCount = 0
 Enemies = [] # Enemies list
@@ -43,9 +51,7 @@ Size_Enemy = 30
 # Nastavení písma pro zobrazení souřadnic
 Font = pygame.font.SysFont("Arial", 24) # Nastaví písmo Arial velikost 24
 
-
-
-# Hlavní smyčka
+# MAIN CYCLE
 Runs = True # Nastaví pro smyčku
 hodiny = pygame.time.Clock() # Vytvoří hodiny pro řízení FPS
 
@@ -78,23 +84,43 @@ while Runs: # Main game cycle
     Sphere_y = max(0, min(Sphere_y, Height - Sphere_radius * 2)) # Zajišťuje, že čtverec nezmizí z okna vertikálně
 
     # Collision detection between player and coin
-    if not coin_collected and (Sphere_x < Coin_x + Coin_size and
+    if not Coin_collected and (Sphere_x < Coin_x + Coin_size and
         Sphere_x + Sphere_radius * 2 > Coin_x and
         Sphere_y < Coin_y + Coin_size and       
         Sphere_y + Sphere_radius * 2 > Coin_y):
         # Collision detected
         EnemyCount += 1 # Increments enemy count by 1
-        coin_collected = True # Makes the coin disappear
-    # Vykreslení
-    Window.fill(Black) # Resets window to full black
-    
+        Coin_collected = True # Makes the coin disappear
 
-    # Rendering #
-    if not coin_collected:
-        pygame.draw.rect(Window, Coin_color, (Coin_x, Coin_y, Coin_size, Coin_size)) # Coin  
+    # Boss entrance animation
+    if Coin_collected and Boss_triangle_y < Boss_triangle_target_y:
+        Boss_triangle_y += Boss_entry_speed
+        if Boss_triangle_y > Boss_triangle_target_y:
+            Boss_triangle_y = Boss_triangle_target_y
+
+    if Boss_triangle_y == Boss_triangle_target_y:
+        Boss_triangle_x += Boss_Speed
+        if Boss_triangle_x > Width - Boss_triangle_size:
+            Boss_Speed = -6
+        elif Boss_triangle_x < Width + Boss_triangle_size:
+            Boss_Speed = 6
+
+
+    Window.fill(Black) # Resets window to full black
+    # Rendering
+    if not Coin_collected:
+        pygame.draw.rect(Window, Coin_color, (Coin_x, Coin_y, Coin_size, Coin_size)) # Coin 
+
     pygame.draw.circle(Window, Sphere_color, (Sphere_x + Sphere_radius, Sphere_y + Sphere_radius), Sphere_radius) # Player
-    
-    # Zobrazení souřadnic
+
+    # draw boss using current y (which animates when starting off-screen)
+    pygame.draw.polygon(Window, Boss_triangle_color, [
+        (Boss_triangle_x, Boss_triangle_y),
+        (Boss_triangle_x + Boss_triangle_size, Boss_triangle_y),
+        (Boss_triangle_x + Boss_triangle_size // 2, Boss_triangle_y + Boss_triangle_size)
+    ]) # Boss triangle
+        
+
     text_souradnice = f"X: {Sphere_x}, Y: {Sphere_y}" 
     text_plocha = Font.render(text_souradnice, True, White) # Vytvoří obrázek textu
     Window.blit(text_plocha, (10, Height - 30)) # Vykreslí text do okna
