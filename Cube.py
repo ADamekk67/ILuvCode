@@ -15,12 +15,12 @@ pygame.display.set_caption("Cube") # Window title
 # Colors variables
 Black = (0, 0, 0)
 White = (255, 255, 255)
-Red = (255, 0, 0)
 
 # Object Settings(Cube) Player
-velikost_ctverce = 50 # Nastaví velikost čtverce
-ctverec_x = Width // 2 - velikost_ctverce // 2 # Vycentruje X souřadnici
-ctverec_y = Height // 2 - velikost_ctverce // 2 # Vycentruje Y souřadnici
+Cube_size = 50 # Nastaví velikost čtverce
+Cube_color = (255, 0, 0)
+ctverec_x = Width // 2 - Cube_size // 2 # Vycentruje X souřadnici
+ctverec_y = Height // 2 - Cube_size // 2 # Vycentruje Y souřadnici
 rychlost = 5 # Nastaví rychlost pohybu
 
 # Object Settings(Coin)
@@ -64,26 +64,20 @@ while Runs: # Main game cycle
         ctverec_y += rychlost # Posune čtverec dolů
 
     if Keybind[pygame.K_r]: # Keybind R for reset position in the center
-        ctverec_x = Width // 2 - velikost_ctverce // 2 # Reset X position
-        ctverec_y = Height // 2 - velikost_ctverce // 2 # Reset Y position
+        ctverec_x = Width // 2 - Cube_size // 2 # Reset X position
+        ctverec_y = Height // 2 - Cube_size // 2 # Reset Y position
 
     # Window boundaries
-    ctverec_x = max(0, min(ctverec_x, Width - velikost_ctverce)) # Zajišťuje, že čtverec nezmizí z okna horizontálně
-    ctverec_y = max(0, min(ctverec_y, Height - velikost_ctverce)) # Zajišťuje, že čtverec nezmizí z okna vertikálně
+    ctverec_x = max(0, min(ctverec_x, Width - Cube_size)) # Zajišťuje, že čtverec nezmizí z okna horizontálně
+    ctverec_y = max(0, min(ctverec_y, Height - Cube_size)) # Zajišťuje, že čtverec nezmizí z okna vertikálně
 
     # Collision detection between player and coin
     if (ctverec_x < Coin_x + Size_Coin and
-        ctverec_x + velikost_ctverce > Coin_x and
+        ctverec_x + Cube_size > Coin_x and
         ctverec_y < Coin_y + Size_Coin and
-        ctverec_y + velikost_ctverce > Coin_y):
+        ctverec_y + Cube_size > Coin_y):
         # Collision detected
-        Coin_x = random.randint(0, Width - Size_Coin - 10)
-        Coin_y = random.randint(0, Height - Size_Coin - 10)
         EnemyCount += 1 # Increments enemy count by 1
-
-
-
-
 
     # Vykreslení
     Window.fill(Black) # Resets window to full black
@@ -91,7 +85,7 @@ while Runs: # Main game cycle
 
     # Rendering #
     pygame.draw.rect(Window, Coin_color, (Coin_x, Coin_y, Size_Coin, Size_Coin)) # Coin  
-    pygame.draw.rect(Window, Red, (ctverec_x, ctverec_y, velikost_ctverce, velikost_ctverce)) # Player
+    pygame.draw.rect(Window, Cube_color, (ctverec_x, ctverec_y, Cube_size, Cube_size)) # Player
     
     # Zobrazení souřadnic
     text_souradnice = f"X: {ctverec_x}, Y: {ctverec_y}" 
