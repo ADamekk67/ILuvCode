@@ -37,24 +37,18 @@ Boss_triangle_size = 160
 Boss_triangle_color = (255 ,0 ,0) 
 Boss_triangle_x = (Width // 2 - Boss_triangle_size // 2)
 Boss_Speed = 6
-
+GoLeft = False
 # start above the window so the boss slides in
 Boss_triangle_start_y = -Boss_triangle_size
 Boss_triangle_y = Boss_triangle_start_y
 Boss_triangle_target_y = (Height // 4 - Boss_triangle_size)
 Boss_entry_speed = 3  # pixels per frame for the entrance animation
-# Enemy Settings
-EnemyCount = 0
-Enemies = [] # Enemies list
-Size_Enemy = 30
 
 # Nastavení písma pro zobrazení souřadnic
 Font = pygame.font.SysFont("Arial", 24) # Nastaví písmo Arial velikost 24
 
-# MAIN CYCLE
-Runs = True # Nastaví pro smyčku
 hodiny = pygame.time.Clock() # Vytvoří hodiny pro řízení FPS
-
+Runs = True
 while Runs: # Main game cycle
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -89,7 +83,6 @@ while Runs: # Main game cycle
         Sphere_y < Coin_y + Coin_size and       
         Sphere_y + Sphere_radius * 2 > Coin_y):
         # Collision detected
-        EnemyCount += 1 # Increments enemy count by 1
         Coin_collected = True # Makes the coin disappear
 
     # Boss entrance animation
@@ -100,12 +93,12 @@ while Runs: # Main game cycle
 
     if Boss_triangle_y == Boss_triangle_target_y:
         Boss_triangle_x += Boss_Speed
-        if Boss_triangle_x > Width - Boss_triangle_size:
+        if Boss_triangle_x > Width - Boss_triangle_size and Boss_triangle_x != 0 and GoLeft == False:
             Boss_Speed = -6
-        elif Boss_triangle_x < Width + Boss_triangle_size:
-            Boss_Speed = 6
-
-
+            GoLeft = True
+        elif Boss_triangle_x < 0 and Boss_triangle_x != 0 and GoLeft == True:
+            Boss_Speed = +6
+            GoLeft = False
     Window.fill(Black) # Resets window to full black
     # Rendering
     if not Coin_collected:
@@ -121,7 +114,7 @@ while Runs: # Main game cycle
     ]) # Boss triangle
         
 
-    text_souradnice = f"X: {Sphere_x}, Y: {Sphere_y}" 
+    text_souradnice = f"X: {Boss_triangle_x}, Y: {Sphere_y}" 
     text_plocha = Font.render(text_souradnice, True, White) # Vytvoří obrázek textu
     Window.blit(text_plocha, (10, Height - 30)) # Vykreslí text do okna
 
