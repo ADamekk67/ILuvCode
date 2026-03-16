@@ -1,6 +1,3 @@
-Požadavky na studentskou práci
-Budete pracovat na vlastních projektech. Během práce musíte plnit následující požadavky:
-
 1. Průběžná práce na GitHubu
 Práce bude průběžně ukládána do veřejného repozitáře na GitHubu.
 Během týdne musí proběhnout vaše aktivita. Aktuální týden se počítá vždy od pondělí do neděle (23:59).
