@@ -1,8 +1,9 @@
-import pyautogui # GUI automation
-import time # Time management
+import pyautogui # mysss
+import time
 import keyboard # Input
 import threading # Multithreading
 ###
+
 
 def click_loop():
     global AutoClicker, RunMain
@@ -26,35 +27,15 @@ def keyboard_loop():
             AutoClicker = False
             print("\n More options:")
             print("  - Press e to exit")
-            print("  - Press 1 to set click time")
-            print("  - Press 2 to set upgrade coordinates")
-            print("  - Press 3 to set total cookies coordinates")
+            print("  - Press 1 to AutoUpgrade")
 
             if keyboard.is_pressed('e'):
                 print("Exiting program.")
                 RunMain = False
                 break
-            elif keyboard.is_pressed('1'):
-                print("1")
-            elif keyboard.is_pressed('2'):
-                print("2")
-            elif keyboard.is_pressed('3'):
-                print("Press x to set Total Cookies coordinates for x")
-                while WFI:
-                    WFI = True
-                    if keyboard.is_pressed('x'):
-                        TotalCookiesCoords = pyautogui.position()
-                        print("Total Cookies coordinates set to", TotalCookiesCoords)
-                        break
-                print("Press y to set Total Cookies coordinates for y")
-                while True:
-                    if keyboard.is_pressed('y'):
-                        TotalCookiesCoords = pyautogui.position()
-                        print("Total Cookies coordinates set to", TotalCookiesCoords)
-                        break
-
-            time.sleep(0.1) # Debounce
-
+           
+           
+    
         time.sleep(0.1)
         
 
