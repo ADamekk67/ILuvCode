@@ -2,3 +2,37 @@
 
 # Materialy na pozdeji :D
 https://en.wikipedia.org/wiki/Reinforcement_learning
+
+## SQLite3 Library Explanation
+The `sqlite3` library in Python is the built-in module for working with SQLite databases. Here's what it does:
+
+### Key Features
+- **Database Creation/Connection**: Lets you create or connect to SQLite database files (`.db` files) without needing a separate server.
+- **SQL Execution**: Allows you to run SQL queries (CREATE, INSERT, SELECT, UPDATE, DELETE) directly from Python.
+- **Data Storage**: Stores data in tables with rows and columns, supporting various data types (text, integers, floats, blobs).
+- **Transactions**: Supports committing or rolling back changes for data integrity.
+- **Lightweight**: No external dependencies—SQLite is embedded and runs in your application.
+
+### Basic Usage Example
+```python
+import sqlite3
+
+# Connect to (or create) a database
+conn = sqlite3.connect('example.db')
+cursor = conn.cursor()
+
+# Create a table
+cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER, name TEXT)')
+
+# Insert data
+cursor.execute('INSERT INTO users VALUES (1, "Alice")')
+conn.commit()
+
+# Query data
+cursor.execute('SELECT * FROM users')
+print(cursor.fetchall())  # [(1, 'Alice')]
+
+conn.close()
+```
+
+It's perfect for small-to-medium projects where you need persistent, structured data storage without setting up a full database server. If you're storing exploration data for your Turtle simulation, SQLite could work well for logging positions, rewards, or episodes in a queryable way!
