@@ -1,6 +1,5 @@
 import pygame
 import json
-import math
 import random
 import threading
 pygame.init()
@@ -13,16 +12,16 @@ GridColor = (0, 0, 0)
 GRID_SIZE = 20
 GRID_WIDTH = 1000 // GRID_SIZE
 GRID_HEIGHT = 1000 // GRID_SIZE
+# Unsafe position
+UnsafeColor = (255, 0, 0)
+UnsafeSize = 49
+
 # Text
 TextFont = pygame.font.SysFont("Arial", 24)
 
 # Turtle
 TurtleSize = 49
 TurtleColor = (0, 255, 0)
-# Unsafe position
-UnsafeColor = (255, 0, 0)
-Size = 49
-
 TurtleSpawnPos = (1000 // 2 - TurtleSize // 2 - 25, 1000 // 2 - TurtleSize // 2 - 25)  # Center of the screen / Default spawn position
 TurtlePosX = TurtleSpawnPos[0]
 TurtlePosY = TurtleSpawnPos[1]
@@ -58,7 +57,7 @@ GAMMA = 0.9  # Discount factor
 EPSILON = 0.5  # Exploration rate
 ACTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 ACTION_STEPS = 50  # Movement step size
-Reward = 0
+
 
 # Threading setup
 render_lock = threading.Lock()
@@ -117,10 +116,9 @@ def render_thread():
             ScreenSize.blit(Reward_text, (10, 40))
             Stepstaken_text = TextFont.render(f"Steps Taken: {StepsTaken}", True, (0, 0, 0))
             ScreenSize.blit(Stepstaken_text, (10, 70))
-            Reward_text = TextFont.render(f"Reward: {Reward}", True, (0, 0, 0))
-            ScreenSize.blit(Reward_text, (10, 100))
             # Spawn turtle
             pygame.draw.rect(ScreenSize, TurtleColor, (TurtlePosX, TurtlePosY, TurtleSize, TurtleSize))
+            pygame.draw.rect(ScreenSize, UnsafeColor, (501, 101, UnsafeSize, UnsafeSize))
             pygame.display.flip()
         
         clock.tick(20)  # FPS Limiter
