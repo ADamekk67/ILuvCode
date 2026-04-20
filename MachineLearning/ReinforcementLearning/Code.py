@@ -25,12 +25,8 @@ text_font = pygame.font.SysFont("Arial", 24)
 # Turtle properties
 turtle_size = 49
 turtle_color = (0, 255, 0)
-turtle_spawn_pos = (SCREEN_WIDTH // 2 - turtle_size // 2 - 25, 
-                    SCREEN_HEIGHT // 2 - turtle_size // 2 - 25)
-turtle_x = turtle_spawn_pos[0]
-turtle_y = turtle_spawn_pos[1]
 steps_taken = 1
-
+turtle_x, turtle_y = (SCREEN_WIDTH // 2 - turtle_size // 2 - 25, SCREEN_HEIGHT // 2 - turtle_size // 2 - 25)
 # Unsafe position
 unsafe_color = (255, 0, 0)
 unsafe_size = 49
@@ -63,12 +59,29 @@ except FileNotFoundError:
 # ============================================================================
 # Q-LEARNING CONFIGURATION
 # ============================================================================
-q_table = {}          # Dictionary to store Q-values: (state, action) -> Q-value
-alpha = 0.1           # Learning rate
-gamma = 0.9           # Discount factor
-epsilon = 0.5         # Exploration rate
+# Q-table stores learned knowledge: for each (state, action) pair, 
+# it stores the expected future reward. Starts empty and builds as turtle learns.
+q_table = {}          # Dictionary: (grid_state, action) -> Q-value (expected reward)
+
+# Learning rate (alpha) controls how much new information overrides old knowledge.
+# 0.1 means new experiences have 10% influence, old knowledge has 90% influence.
+alpha = 0.1           # Learning rate (0-1): higher = learn faster but less stable
+
+# Discount factor (gamma) determines how much we value future rewards vs immediate rewards.
+# 0.9 means we care a lot about future outcomes, 0.0 means only immediate reward matters.
+gamma = 0.9           # Discount factor (0-1): how much to value future rewards
+
+# Exploration rate (epsilon) controls exploration vs exploitation balance.
+# 0.5 means 50% random exploration, 50% using best known strategy.
+# As the turtle learns, you may want to lower this to favor learned strategies.
+epsilon = 0.5         # Exploration rate (0-1): probability of random action
+
+# Available directions the turtle can move in
 actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
-action_steps = 50     # Movement step size
+
+# Distance the turtle moves per action (in pixels).
+# 50 pixels = 1 grid cell (since grid_width = grid_height = 50)
+action_steps = 50     # Movement step size (pixels per action)
 
 # ============================================================================
 # THREADING
@@ -115,11 +128,11 @@ def epsilon_greedy(state):
 def get_next_position(x, y, action):
     """Calculate next position based on action."""
     if action == 'UP':
-        return (x, max(1, y - action_steps))
+        return (x, max(0, y - action_steps))
     elif action == 'DOWN':
         return (x, min(SCREEN_HEIGHT - turtle_size, y + action_steps))
     elif action == 'LEFT':
-        return (max(1, x - action_steps), y)
+        return (max(0, x - action_steps), y)
     elif action == 'RIGHT':
         return (min(SCREEN_WIDTH - turtle_size, x + action_steps), y)
     return (x, y)
@@ -150,18 +163,18 @@ def render_thread():
                 f"Steps Taken: {steps_taken}", True, (0, 0, 0))
             screen.blit(steps_text, (10, 70))
             
+            # Draw all unsafe zones
+            for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
+                pygame.draw.rect(screen, unsafe_color, 
+                                (unsafe_pos_x + 1, unsafe_pos_y + 1, unsafe_size, unsafe_size))
+            
             # Draw turtle
             pygame.draw.rect(screen, turtle_color, 
                             (turtle_x, turtle_y, turtle_size, turtle_size))
             
-            # Draw all unsafe zones
-            for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
-                pygame.draw.rect(screen, unsafe_color, 
-                                (unsafe_pos_x, unsafe_pos_y, grid_width, grid_height))
-            
             pygame.display.flip()
         
-        clock.tick(20)  # 20 FPS
+        clock.tick(20)  # FPS
 
 
 # ============================================================================
@@ -224,5 +237,4 @@ while main_loop:
     
     # Track position as safe
     collected_data["Safe Positions"].add((turtle_x, turtle_y))
-    
     pygame.time.Clock().tick(20)
