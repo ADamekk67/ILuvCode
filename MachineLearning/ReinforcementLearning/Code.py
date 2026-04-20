@@ -2,173 +2,227 @@ import pygame
 import json
 import random
 import threading
+
 pygame.init()
 
-# Environment
-Screen = 1000
-ScreenSize = pygame.display.set_mode((1000, 1000))
-BackgroundColor = (255, 255, 255)
-GridColor = (0, 0, 0)
-GRID_SIZE = 20
-GRID_WIDTH = 1000 // GRID_SIZE
-GRID_HEIGHT = 1000 // GRID_SIZE
+# ============================================================================
+# ENVIRONMENT CONFIGURATION
+# ============================================================================
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 1000
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+background_color = (255, 255, 255)
+grid_color = (0, 0, 0)
+grid_size = 20
+grid_width = SCREEN_WIDTH // grid_size
+grid_height = SCREEN_HEIGHT // grid_size
+
+# ============================================================================
+# VISUAL ELEMENTS
+# ============================================================================
+text_font = pygame.font.SysFont("Arial", 24)
+
+# Turtle properties
+turtle_size = 49
+turtle_color = (0, 255, 0)
+turtle_spawn_pos = (SCREEN_WIDTH // 2 - turtle_size // 2 - 25, 
+                    SCREEN_HEIGHT // 2 - turtle_size // 2 - 25)
+turtle_x = turtle_spawn_pos[0]
+turtle_y = turtle_spawn_pos[1]
+steps_taken = 1
+
 # Unsafe position
-UnsafeColor = (255, 0, 0)
-UnsafeSize = 49
+unsafe_color = (255, 0, 0)
+unsafe_size = 49
 
-# Text
-TextFont = pygame.font.SysFont("Arial", 24)
-
-# Turtle
-TurtleSize = 49
-TurtleColor = (0, 255, 0)
-TurtleSpawnPos = (1000 // 2 - TurtleSize // 2 - 25, 1000 // 2 - TurtleSize // 2 - 25)  # Center of the screen / Default spawn position
-TurtlePosX = TurtleSpawnPos[0]
-TurtlePosY = TurtleSpawnPos[1]
-TurtleState = "Explore"
-TurtleSpawn = True
-MainLoop = True
-# Turtle Properties
-StepsTaken = 1
-pressed = False
-# Json file loading and creation logic
+# ============================================================================
+# GAME STATE
+# ============================================================================
+main_loop = True
+# ============================================================================
+# DATA PERSISTENCE
+# ============================================================================
 try:
     with open("DataSave.json", 'r') as f:
-        LoadedData = json.load(f)
-        CollectedData = {
-            "Steps Taken Total": LoadedData.get("Steps Taken Total", 0),
-            "Safe Positions": set(tuple(item) for item in LoadedData.get("Safe Positions", [])),
-            "Unsafe Positions": set(tuple(item) for item in LoadedData.get("Unsafe Positions", [(0, 0)]))
+        loaded_data = json.load(f)
+        collected_data = {
+            "Steps Taken Total": loaded_data.get("Steps Taken Total", 0),
+            "Safe Positions": set(tuple(item) for item in loaded_data.get("Safe Positions", [])),
+            "Unsafe Positions": set(tuple(item) for item in loaded_data.get("Unsafe Positions", [(0, 0)]))
         }
         print("Data loaded successfully")
-except FileNotFoundError: # If not found, create new file
+except FileNotFoundError:
     print("FileNotFound - Initializing new data")
-    
-    CollectedData = {
+    collected_data = {
         "Steps Taken Total": 0,
         "Safe Positions": set(),
         "Unsafe Positions": set()
     }
 
-# Q-Learning Setup
-Q_TABLE = {}  # Dictionary to store Q-values: (state, action) -> Q-value
-ALPHA = 0.1  # Learning rate
-GAMMA = 0.9  # Discount factor
-EPSILON = 0.5  # Exploration rate
-ACTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
-ACTION_STEPS = 50  # Movement step size
 
+# ============================================================================
+# Q-LEARNING CONFIGURATION
+# ============================================================================
+q_table = {}          # Dictionary to store Q-values: (state, action) -> Q-value
+alpha = 0.1           # Learning rate
+gamma = 0.9           # Discount factor
+epsilon = 0.5         # Exploration rate
+actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
+action_steps = 50     # Movement step size
 
-# Threading setup
+# ============================================================================
+# THREADING
+# ============================================================================
 render_lock = threading.Lock()
 render_stop = threading.Event()
 
 
+
+# ============================================================================
+# GAME FUNCTIONS
+# ============================================================================
+
 def get_state(x, y):
-    # Turtle position
-    return (x // GRID_WIDTH, y // GRID_HEIGHT)
+    """Convert pixel coordinates to grid state."""
+    return (x // grid_width, y // grid_height)
+
+
+def pixel_to_grid_coords(mouse_x, mouse_y):
+    """Convert mouse pixel coordinates to grid cell coordinates (top-left corner)."""
+    grid_x = (mouse_x // grid_width) * grid_width
+    grid_y = (mouse_y // grid_height) * grid_height
+    return (grid_x, grid_y)
+
 
 def get_reward(state):
-    """Calculate reward based on state"""
-    if state in CollectedData["Unsafe Positions"]:
+    """Calculate reward based on current state."""
+    if state in collected_data["Unsafe Positions"]:
         return -10
-    elif state in CollectedData["Safe Positions"]:
+    elif state in collected_data["Safe Positions"]:
         return 1
     return 0
 
+
 def epsilon_greedy(state):
-    """Select action using epsilon-greedy policy"""
-    if random.random() < EPSILON:
-        return random.choice(ACTIONS)
+    """Select action using epsilon-greedy policy."""
+    if random.random() < epsilon:
+        return random.choice(actions)
     else:
-        q_values = [Q_TABLE.get((state, a), 0) for a in ACTIONS]
-        return ACTIONS[q_values.index(max(q_values))]
+        q_values = [q_table.get((state, a), 0) for a in actions]
+        return actions[q_values.index(max(q_values))]
+
 
 def get_next_position(x, y, action):
-    """Calculate next position based on action"""
+    """Calculate next position based on action."""
     if action == 'UP':
-        return (x, max(1, y - ACTION_STEPS))
+        return (x, max(1, y - action_steps))
     elif action == 'DOWN':
-        return (x, min(1000 - TurtleSize, y + ACTION_STEPS))
+        return (x, min(SCREEN_HEIGHT - turtle_size, y + action_steps))
     elif action == 'LEFT':
-        return (max(1, x - ACTION_STEPS), y)
+        return (max(1, x - action_steps), y)
     elif action == 'RIGHT':
-        return (min(1000 - TurtleSize, x + ACTION_STEPS), y)
+        return (min(SCREEN_WIDTH - turtle_size, x + action_steps), y)
     return (x, y)
 
+
 def render_thread():
-    """Rendering loop running in a separate thread"""
+    """Rendering loop running in a separate thread."""
     clock = pygame.time.Clock()
     while not render_stop.is_set():
         with render_lock:
-            ScreenSize.fill(BackgroundColor)  # Fill
-            # Draw grid
-            for i in range(1, GRID_SIZE): # Grid (síť)
-                # Vertical lines
-                pygame.draw.line(ScreenSize, GridColor, (i * GRID_WIDTH, 0), (i * GRID_WIDTH, 1000))
-                # Horizontal lines
-                pygame.draw.line(ScreenSize, GridColor, (0, i * GRID_HEIGHT), (1000, i * GRID_HEIGHT))
+            screen.fill(background_color)
             
-            # Draw text
-            Episode_text = TextFont.render(f"Current Position: ({TurtlePosX}, {TurtlePosY})", True, (0, 0, 0))
-            ScreenSize.blit(Episode_text, (10, 10)) 
-            Reward_text = TextFont.render(f"State: {TurtleState}", True, (0, 0, 0))
-            ScreenSize.blit(Reward_text, (10, 40))
-            Stepstaken_text = TextFont.render(f"Steps Taken: {StepsTaken}", True, (0, 0, 0))
-            ScreenSize.blit(Stepstaken_text, (10, 70))
-            # Spawn turtle
-            pygame.draw.rect(ScreenSize, TurtleColor, (TurtlePosX, TurtlePosY, TurtleSize, TurtleSize))
-            pygame.draw.rect(ScreenSize, UnsafeColor, (501, 101, UnsafeSize, UnsafeSize))
+            # Draw grid
+            for i in range(1, grid_size):
+                # Vertical lines
+                pygame.draw.line(screen, grid_color, (i * grid_width, 0), 
+                                (i * grid_width, SCREEN_HEIGHT))
+                # Horizontal lines
+                pygame.draw.line(screen, grid_color, (0, i * grid_height), 
+                                (SCREEN_WIDTH, i * grid_height))
+            
+            # Draw UI text
+            position_text = text_font.render(
+                f"Current Position: ({turtle_x}, {turtle_y})", True, (0, 0, 0))
+            screen.blit(position_text, (10, 10))
+            
+            steps_text = text_font.render(
+                f"Steps Taken: {steps_taken}", True, (0, 0, 0))
+            screen.blit(steps_text, (10, 70))
+            
+            # Draw turtle
+            pygame.draw.rect(screen, turtle_color, 
+                            (turtle_x, turtle_y, turtle_size, turtle_size))
+            
+            # Draw all unsafe zones
+            for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
+                pygame.draw.rect(screen, unsafe_color, 
+                                (unsafe_pos_x, unsafe_pos_y, grid_width, grid_height))
+            
             pygame.display.flip()
         
-        clock.tick(20)  # FPS Limiter
+        clock.tick(20)  # 20 FPS
 
-### Main Loop
+
+# ============================================================================
+# MAIN LOOP
+# ============================================================================
+
 # Start rendering thread
 rendering_thread = threading.Thread(target=render_thread, daemon=True)
 rendering_thread.start()
 
-while MainLoop:
+while main_loop:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            MainLoop = False
-            render_stop.set()  # Stop rendering thread
-
-            # Save data to JSON file
-            DataToSave = CollectedData.copy()
-            DataToSave["Safe Positions"] = list(CollectedData["Safe Positions"])
-            DataToSave["Unsafe Positions"] = list(CollectedData["Unsafe Positions"])
-            DataToSave["Steps Taken Total"] += StepsTaken
-            with open("DataSave.json", 'w') as f:
-                json.dump(DataToSave, f, indent=4)
+            main_loop = False
+            render_stop.set()
             
+            # Save data to JSON file
+            data_to_save = collected_data.copy()
+            data_to_save["Safe Positions"] = list(collected_data["Safe Positions"])
+            data_to_save["Unsafe Positions"] = list(collected_data["Unsafe Positions"])
+            data_to_save["Steps Taken Total"] += steps_taken
+            with open("DataSave.json", 'w') as f:
+                json.dump(data_to_save, f, indent=4)
             break
-
-    # Q-Learning Logic
-    current_state = get_state(TurtlePosX, TurtlePosY)
+        
+        # Handle mouse clicks to mark unsafe positions
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Left click
+                mouse_x, mouse_y = event.pos
+                grid_x, grid_y = pixel_to_grid_coords(mouse_x, mouse_y)
+                collected_data["Unsafe Positions"].add((grid_x, grid_y))
+                print(f"Marked unsafe position: ({grid_x}, {grid_y})")
     
-    if TurtleState == "Explore":
-        # Select action using epsilon-greedy
-        action = epsilon_greedy(current_state)
-        
-        # Get next position
-        next_x, next_y = get_next_position(TurtlePosX, TurtlePosY, action)
-        next_state = get_state(next_x, next_y)
-        
-        # Get reward
-        Reward = get_reward(next_state)
-        
-        # Q-Learning update
-        current_q = Q_TABLE.get((current_state, action), 0)
-        max_next_q = max([Q_TABLE.get((next_state, a), 0) for a in ACTIONS])
-        Q_TABLE[(current_state, action)] = current_q + ALPHA * (Reward + GAMMA * max_next_q - current_q)
-        
-        # Move turtle
-        TurtlePosX = next_x
-        TurtlePosY = next_y
-        StepsTaken += 1
-        
-        # Track positions
-        CollectedData["Safe Positions"].add((TurtlePosX, TurtlePosY))
+    # ========================================================================
+    # Q-LEARNING UPDATE
+    # ========================================================================
+    
+    # Get current state
+    current_state = get_state(turtle_x, turtle_y)
+    
+    # Select action using epsilon-greedy policy
+    action = epsilon_greedy(current_state)
+    
+    # Calculate next position
+    next_x, next_y = get_next_position(turtle_x, turtle_y, action)
+    next_state = get_state(next_x, next_y)
+    
+    # Get reward for next state
+    reward = get_reward(next_state)
+    
+    # Update Q-table using Q-learning formula
+    current_q = q_table.get((current_state, action), 0)
+    max_next_q = max([q_table.get((next_state, a), 0) for a in actions])
+    q_table[(current_state, action)] = current_q + alpha * (reward + gamma * max_next_q - current_q)
+    
+    # Move turtle to next position
+    turtle_x = next_x
+    turtle_y = next_y
+    steps_taken += 1
+    
+    # Track position as safe
+    collected_data["Safe Positions"].add((turtle_x, turtle_y))
     
     pygame.time.Clock().tick(20)
