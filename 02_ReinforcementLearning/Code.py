@@ -17,7 +17,7 @@ grid_size =  20
 grid_width = SCREEN_WIDTH // grid_size
 grid_height = SCREEN_HEIGHT // grid_size
 
-FPS = 60
+FPS = 30
 # ============================================================================
 # VISUAL ELEMENTS
 # ============================================================================
@@ -30,7 +30,7 @@ steps_taken = 0
 turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)  
 unsafe_color = (255, 0, 0)
 unsafe_size = 49
-
+unsafe_positions_count = 0
 # ============================================================================
 # GAME STATE
 # ============================================================================
@@ -50,7 +50,7 @@ try:
 except FileNotFoundError:
     print("FileNotFound - Initializing new data with random unsafe positions")
     unsafe_positions = set()
-    while len(unsafe_positions) < 90:
+    while len(unsafe_positions) < unsafe_positions_count:
         x = random.randint(0, 19)
         y = random.randint(0, 19)
         unsafe_positions.add((x, y))
@@ -119,7 +119,7 @@ def pixel_to_grid_coords(mouse_x, mouse_y):
 def get_reward(state):
     """Calculate reward based on current state."""
     if state in collected_data["Unsafe Positions"]:
-        return -1
+        return -2
     elif state in collected_data["Safe Positions"]:
         return 1
     return 0
