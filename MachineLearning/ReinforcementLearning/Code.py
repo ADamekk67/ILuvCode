@@ -51,7 +51,7 @@ except FileNotFoundError:
     print("FileNotFound - Initializing new data")
     collected_data = {
         "Steps Taken Total": 0,
-        "Safe Positions": set(),
+        "Safe Positions":  set(),
         "Unsafe Positions": set()
     }
 
@@ -154,6 +154,11 @@ def render_thread():
                 pygame.draw.line(screen, grid_color, (0, i * grid_height - 1), 
                                 (SCREEN_WIDTH - 1, i * grid_height - 1))
             
+            # Draw all unsafe zones
+            for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
+                pygame.draw.rect(screen, unsafe_color, 
+                                (unsafe_pos_x, unsafe_pos_y, unsafe_size, unsafe_size))
+
             # Draw UI text
             position_text = text_font.render(
                 f"Current Position: ({turtle_x}, {turtle_y})", True, (0, 0, 0))
