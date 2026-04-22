@@ -17,7 +17,7 @@ grid_size =  20
 grid_width = SCREEN_WIDTH // grid_size
 grid_height = SCREEN_HEIGHT // grid_size
 
-FPS = 5
+FPS = 20
 # ============================================================================
 # VISUAL ELEMENTS
 # ============================================================================
@@ -76,6 +76,10 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # As the turtle learns, you may want to lower this to favor learned strategies.
 epsilon = 0.9         # Exploration rate (0-1): probability of random action
 
+# Epsilon decay parameters
+epsilon_min = 0.1    # Minimum exploration rate
+epsilon_decay = 0.995 # How much epsilon decreases each step
+
 # Available directions the turtle can move in
 actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 
@@ -110,7 +114,7 @@ def pixel_to_grid_coords(mouse_x, mouse_y):
 def get_reward(state):
     """Calculate reward based on current state."""
     if state in collected_data["Unsafe Positions"]:
-        return -10
+        return -1
     elif state in collected_data["Safe Positions"]:
         return 1
     return 0
@@ -127,14 +131,18 @@ def epsilon_greedy(state):
 
 def get_next_position(x, y, action):
     """Calculate next position based on action."""
+    # Calculate grid-aligned boundaries
+    max_x = ((SCREEN_WIDTH // grid_width) - 1) * grid_width
+    max_y = ((SCREEN_HEIGHT // grid_height) - 1) * grid_height
+    
     if action == 'UP':
         return (x, max(0, y - action_steps))
     elif action == 'DOWN':
-        return (x, min(SCREEN_HEIGHT - turtle_size, y + action_steps))
+        return (x, min(max_y, y + action_steps))
     elif action == 'LEFT':
         return (max(0, x - action_steps), y)
     elif action == 'RIGHT':
-        return (min(SCREEN_WIDTH - turtle_size, x + action_steps), y)
+        return (min(max_x, x + action_steps), y)
     return (x, y)
 
 
@@ -145,8 +153,8 @@ def render_thread():
         with render_lock:
             screen.fill(background_color)
             
-            # Draw grid
-            for i in range(1, grid_size):
+            # Draw grid including border lines
+            for i in range(0, grid_size + 1):
                 # Vertical lines
                 pygame.draw.line(screen, grid_color, (i * grid_width - 1, 0), 
                                 (i * grid_width - 1, SCREEN_HEIGHT - 1))
@@ -155,9 +163,11 @@ def render_thread():
                                 (SCREEN_WIDTH - 1, i * grid_height - 1))
             
             # Draw all unsafe zones
-            for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
+            for unsafe_grid_x, unsafe_grid_y in collected_data["Unsafe Positions"]:
+                unsafe_pixel_x = unsafe_grid_x * grid_width
+                unsafe_pixel_y = unsafe_grid_y * grid_height
                 pygame.draw.rect(screen, unsafe_color, 
-                                (unsafe_pos_x, unsafe_pos_y, unsafe_size, unsafe_size))
+                                (unsafe_pixel_x, unsafe_pixel_y, unsafe_size, unsafe_size))
 
             # Draw UI text
             position_text = text_font.render(
@@ -168,10 +178,9 @@ def render_thread():
                 f"Steps Taken: {steps_taken}", True, (0, 0, 0))
             screen.blit(steps_text, (10, 70))
             
-            # Draw all unsafe zones
-            for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
-                pygame.draw.rect(screen, unsafe_color, 
-                                (unsafe_pos_x, unsafe_pos_y, unsafe_size, unsafe_size))
+            epsilon_text = text_font.render(
+                f"Epsilon: {epsilon:.3f}", True, (0, 0, 0))
+            screen.blit(epsilon_text, (10, 110))
             
             # Draw turtle
             pygame.draw.rect(screen, turtle_color, 
@@ -209,9 +218,9 @@ while main_loop:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
                 mouse_x, mouse_y = event.pos
-                grid_x, grid_y = pixel_to_grid_coords(mouse_x, mouse_y)
-                collected_data["Unsafe Positions"].add((grid_x, grid_y))
-                print(f"Marked unsafe position: ({grid_x}, {grid_y})")
+                grid_state = get_state(mouse_x, mouse_y)
+                collected_data["Unsafe Positions"].add(grid_state)
+                print(f"Marked unsafe position: {grid_state}")
     
     # ========================================================================
     # Q-LEARNING UPDATE
@@ -235,11 +244,15 @@ while main_loop:
     max_next_q = max([q_table.get((next_state, a), 0) for a in actions])
     q_table[(current_state, action)] = current_q + alpha * (reward + gamma * max_next_q - current_q)
     
+    # Decay epsilon over time to shift from exploration to exploitation
+    epsilon = max(epsilon_min, epsilon * epsilon_decay)
+    
     # Move turtle to next position
     turtle_x = next_x
     turtle_y = next_y
     steps_taken += 1
-    
-    # Track position as safe
-    collected_data["Safe Positions"].add((turtle_x, turtle_y))
+    print(f"Action: {action}, Reward: {reward}, New Q-value: {q_table[(current_state, action)]:.2f}, Epsilon: {epsilon:.3f}")
+    # Track position as safe (using grid coordinates)
+    current_grid_state = get_state(turtle_x, turtle_y)
+    collected_data["Safe Positions"].add(current_grid_state)
     pygame.time.Clock().tick(FPS)
