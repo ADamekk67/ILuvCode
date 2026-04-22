@@ -3,8 +3,10 @@ import json
 import random
 import threading
 
-pygame.init()
+import my_library
 
+print("\n ====================================================================")
+pygame.init()
 # ============================================================================
 # ENVIRONMENT CONFIGURATION
 # ============================================================================
@@ -35,9 +37,13 @@ unsafe_positions_count = 0
 # GAME STATE
 # ============================================================================
 main_loop = True
+printQ = True  # Set to True to print Q-learning details each step
 # ============================================================================
-# DATA PERSISTENCE
+# DATA COLLECTION
 # ============================================================================
+
+print(" Loading data from DataSave.json, MapLayout.json if they exist...")
+
 try:
     with open("DataSave.json", 'r') as f:
         loaded_data = json.load(f)
@@ -48,19 +54,24 @@ try:
         }
         print("Data loaded successfully")
 except FileNotFoundError:
-    print("FileNotFound - Initializing new data with random unsafe positions")
-    unsafe_positions = set()
-    while len(unsafe_positions) < unsafe_positions_count:
-        x = random.randint(0, 19)
-        y = random.randint(0, 19)
-        unsafe_positions.add((x, y))
+    print("FileNotFound - Initializing new data")
     collected_data = {
         "Steps Taken Total": 0,
         "Safe Positions":  set(),
-        "Unsafe Positions": unsafe_positions
+        "Unsafe Positions": set()
     }
-
-
+try:
+    with open("MapLayout.json", 'r') as f:
+        map_data = json.load(f)
+        map_layout = {
+            "Unsafe Blocks": set(tuple(item) for item in map_data.get("Unsafe Blocks", []))
+        }
+        print("Map data loaded successfully")
+except FileNotFoundError:
+    print("MapLayout.json not found - No map data loaded")
+    map_layout = {
+        "Unsafe Blocks": set()
+    }
 # ============================================================================
 # Q-LEARNING CONFIGURATION
 # ============================================================================
@@ -80,7 +91,6 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # 0.5 means 50% random exploration, 50% using best known strategy.
 # As the turtle learns, you may want to lower this to favor learned strategies.
 epsilon = 1        # Exploration rate (0-1): probability of random action
-
 # Epsilon decay parameters
 epsilon_min = 0.1    # Minimum exploration rate
 epsilon_decay = 0.999 # How much epsilon decreases each step
@@ -92,6 +102,8 @@ actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 # 50 pixels = 1 grid cell (since grid_width = grid_height = 50)
 action_steps = 50     # Movement step size (pixels per action)
 
+penalty = -1 # Penalty for unsafe positions
+gift = 1 # Reward
 # ============================================================================
 # THREADING
 # ============================================================================
@@ -118,10 +130,10 @@ def pixel_to_grid_coords(mouse_x, mouse_y):
 
 def get_reward(state):
     """Calculate reward based on current state."""
-    if state in collected_data["Unsafe Positions"]:
-        return -2
+    if state in collected_data["Unsafe Positions"] or state in map_layout["Unsafe Blocks"]:
+        return gift
     elif state in collected_data["Safe Positions"]:
-        return 1
+        return penalty
     return 0
 
 
@@ -168,7 +180,7 @@ def render_thread():
                                 (SCREEN_WIDTH - 1, i * grid_height - 1))
             
             # Draw all unsafe zones
-            for unsafe_grid_x, unsafe_grid_y in collected_data["Unsafe Positions"]:
+            for unsafe_grid_x, unsafe_grid_y in map_layout.get("Unsafe Blocks", []):
                 unsafe_pixel_x = unsafe_grid_x * grid_width
                 unsafe_pixel_y = unsafe_grid_y * grid_height
                 pygame.draw.rect(screen, unsafe_color, 
@@ -186,8 +198,7 @@ def render_thread():
             epsilon_text = text_font.render(
                 f"Epsilon: {epsilon:.3f}", True, (0, 0, 0))
             screen.blit(epsilon_text, (10, 110))
-            
-            # Draw turtle
+
             pygame.draw.rect(screen, turtle_color, 
                             (turtle_x, turtle_y, turtle_size, turtle_size))
             
@@ -205,6 +216,7 @@ rendering_thread = threading.Thread(target=render_thread, daemon=True)
 rendering_thread.start()
 
 while main_loop:
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             main_loop = False
@@ -217,6 +229,13 @@ while main_loop:
             data_to_save["Steps Taken Total"] += steps_taken
             with open("DataSave.json", 'w') as f:
                 json.dump(data_to_save, f, indent=4)
+            
+            # Save map layout to JSON file
+            map_data_to_save = {
+                "Unsafe Blocks": list(map_layout.get("Unsafe Blocks", []))
+            }
+            with open("MapLayout.json", 'w') as f:
+                json.dump(map_data_to_save, f, indent=4)
             break
         
         # Handle mouse clicks to mark unsafe positions
@@ -224,8 +243,7 @@ while main_loop:
             if event.button == 1:  # Left click
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
-                collected_data["Unsafe Positions"].add(grid_state)
-                print(f"Marked unsafe position: {grid_state}")
+                map_layout["Unsafe Blocks"].add(grid_state)
     
     # ========================================================================
     # Q-LEARNING UPDATE
@@ -256,7 +274,9 @@ while main_loop:
     turtle_x = next_x
     turtle_y = next_y
     steps_taken += 1
-    print(f"Action: {action}, Reward: {reward}, New Q-value: {q_table[(current_state, action)]:.2f}, Epsilon: {epsilon:.3f}")
+    if printQ:
+        print(f"Action: {action}, Reward: {reward}, New Q-value: {q_table[(current_state, action)]:.2f}, Epsilon: {epsilon:.3f}")
+    
     # Track position as safe (using grid coordinates)
     current_grid_state = get_state(turtle_x, turtle_y)
     collected_data["Safe Positions"].add(current_grid_state)
