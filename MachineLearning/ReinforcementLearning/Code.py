@@ -13,10 +13,11 @@ SCREEN_HEIGHT = 1000
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 background_color = (255, 255, 255)
 grid_color = (0, 0, 0)
-grid_size = 20
+grid_size =  20
 grid_width = SCREEN_WIDTH // grid_size
 grid_height = SCREEN_HEIGHT // grid_size
 
+FPS = 5
 # ============================================================================
 # VISUAL ELEMENTS
 # ============================================================================
@@ -25,9 +26,8 @@ text_font = pygame.font.SysFont("Arial", 24)
 # Turtle properties
 turtle_size = 49
 turtle_color = (0, 255, 0)
-steps_taken = 1
-turtle_x, turtle_y = (SCREEN_WIDTH // 2 - turtle_size // 2 - 25, SCREEN_HEIGHT // 2 - turtle_size // 2 - 25)
-# Unsafe position
+steps_taken = 0
+turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)  
 unsafe_color = (255, 0, 0)
 unsafe_size = 49
 
@@ -74,7 +74,7 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # Exploration rate (epsilon) controls exploration vs exploitation balance.
 # 0.5 means 50% random exploration, 50% using best known strategy.
 # As the turtle learns, you may want to lower this to favor learned strategies.
-epsilon = 0.5         # Exploration rate (0-1): probability of random action
+epsilon = 0.9         # Exploration rate (0-1): probability of random action
 
 # Available directions the turtle can move in
 actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
@@ -148,11 +148,11 @@ def render_thread():
             # Draw grid
             for i in range(1, grid_size):
                 # Vertical lines
-                pygame.draw.line(screen, grid_color, (i * grid_width, 0), 
-                                (i * grid_width, SCREEN_HEIGHT))
+                pygame.draw.line(screen, grid_color, (i * grid_width - 1, 0), 
+                                (i * grid_width - 1, SCREEN_HEIGHT - 1))
                 # Horizontal lines
-                pygame.draw.line(screen, grid_color, (0, i * grid_height), 
-                                (SCREEN_WIDTH, i * grid_height))
+                pygame.draw.line(screen, grid_color, (0, i * grid_height - 1), 
+                                (SCREEN_WIDTH - 1, i * grid_height - 1))
             
             # Draw UI text
             position_text = text_font.render(
@@ -166,7 +166,7 @@ def render_thread():
             # Draw all unsafe zones
             for unsafe_pos_x, unsafe_pos_y in collected_data["Unsafe Positions"]:
                 pygame.draw.rect(screen, unsafe_color, 
-                                (unsafe_pos_x + 1, unsafe_pos_y + 1, unsafe_size, unsafe_size))
+                                (unsafe_pos_x, unsafe_pos_y, unsafe_size, unsafe_size))
             
             # Draw turtle
             pygame.draw.rect(screen, turtle_color, 
@@ -174,7 +174,7 @@ def render_thread():
             
             pygame.display.flip()
         
-        clock.tick(20)  # FPS
+        clock.tick(FPS)  # FPS
 
 
 # ============================================================================
@@ -237,4 +237,4 @@ while main_loop:
     
     # Track position as safe
     collected_data["Safe Positions"].add((turtle_x, turtle_y))
-    pygame.time.Clock().tick(20)
+    pygame.time.Clock().tick(FPS)
