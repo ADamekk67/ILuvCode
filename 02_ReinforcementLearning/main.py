@@ -42,22 +42,8 @@ printQ = True  # Set to True to print Q-learning details each step
 # DATA COLLECTION
 # ============================================================================
 
-print(" Loading data from DataSave.json, MapLayout.json if they exist...")
+print("Loading MapLayout.json if they exist...")
 
-try:
-    with open("DataSave.json", 'r') as f:
-        loaded_data = json.load(f)
-        collected_data = {
-            "Steps Taken Total": loaded_data.get("Steps Taken Total", 0),
-            "Q_values": {tuple(key.rsplit('_', 1)[0].strip('()').split(', ')): value for key, value in loaded_data.get("Q_values", {}).items()}
-            }
-        print("Data loaded successfully")
-except FileNotFoundError:
-    print("FileNotFound - Initializing new data")
-    collected_data = {
-        "Steps Taken Total": 0,
-        "Q_values": {}
-    }
 try:
     with open("MapLayout.json", 'r') as f:
         map_data = json.load(f)
@@ -70,12 +56,23 @@ except FileNotFoundError:
     map_layout = {
         "Unsafe Blocks": set()
     }
+
+
 # ============================================================================
 # Q-LEARNING CONFIGURATION
 # ============================================================================
 # Q-table stores learned knowledge: for each (state, action) pair, 
 # it stores the expected future reward. Starts empty and builds as turtle learns.
-q_table = {}          # Dictionary: (grid_state, action) -> Q-value (expected reward)
+
+try:
+    with open("DataSave.json", 'r') as f:
+        loaded_data = json.load(f)
+    q_table = {
+    eval(k): v for k, v in loaded_data.get("Q_Table", {}).items()
+}
+except FileNotFoundError:
+    print("DataSave.json not found - Starting with empty Q-table")
+    q_table = {}  
 
 # Learning rate (alpha) controls how much new information overrides old knowledge.
 # 0.1 means new experiences have 10% influence, old knowledge has 90% influence.
@@ -88,9 +85,9 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # Exploration rate (epsilon) controls exploration vs exploitation balance.
 # 0.5 means 50% random exploration, 50% using best known strategy.
 # As the turtle learns, you may want to lower this to favor learned strategies.
-epsilon = 1        # Exploration rate (0-1): probability of random action
+epsilon = 0.2       # Exploration rate (0-1): probability of random action
 # Epsilon decay parameters
-epsilon_min = 0.1    # Minimum exploration rate
+epsilon_min = 0    # Minimum exploration rate
 epsilon_decay = 0.999 # How much epsilon decreases each step
 
 # Available directions the turtle can move in
@@ -100,8 +97,11 @@ actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 # 50 pixels = 1 grid cell (since grid_width = grid_height = 50)
 action_steps = 50     # Movement step size (pixels per action)
 
-penalty = -1 # Penalty for unsafe positions
-safe = 1 # Reward for safe positions
+# Rewards for the turtle's actions: negative for unsafe positions, positive for safe positions.
+
+penalty = 2 # Penalty for unsafe positions
+safe = -1 # Reward for safe positions
+gold = 10 # Reward for reaching the goal (if implemented)
 # ============================================================================
 # THREADING
 # ============================================================================
@@ -139,8 +139,9 @@ def epsilon_greedy(state):
         return random.choice(actions)
     else:
         q_values = [q_table.get((state, a), 0) for a in actions]
-        return actions[q_values.index(max(q_values))]
-
+        max_q = max(q_values)
+        best_actions = [a for a in actions if q_table.get((state, a), 0) == max_q]
+        return random.choice(best_actions)
 
 def get_next_position(x, y, action):
     """Calculate next position based on action."""
@@ -217,14 +218,15 @@ while main_loop:
         if event.type == pygame.QUIT:
             main_loop = False
             render_stop.set()
-            
-            # Save data to JSON file
-            data_to_save = collected_data.copy()
-            data_to_save["Steps Taken Total"] += steps_taken
-            data_to_save["Q_values"] = {f"{state}_{action}": q for (state, action), q in q_table.items()}
+
+            # Save Q-table to JSON file
+            q_table_to_save = {str(k): v for k, v in q_table.items()}
+            data_to_save = {
+                "Q_Table": q_table_to_save
+            }
             with open("DataSave.json", 'w') as f:
                 json.dump(data_to_save, f, indent=4)
-            
+
             # Save map layout to JSON file
             map_data_to_save = {
                 "Unsafe Blocks": list(map_layout.get("Unsafe Blocks", []))
@@ -234,12 +236,18 @@ while main_loop:
             break
         
         # Handle mouse clicks to mark unsafe positions
-        elif event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
                 map_layout["Unsafe Blocks"].add(grid_state)
-    
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 3:  # Right click to remove unsafe block
+                mouse_x, mouse_y = event.pos
+                grid_state = get_state(mouse_x, mouse_y)
+                map_layout["Unsafe Blocks"].discard(grid_state)
+
     # ========================================================================
     # Q-LEARNING UPDATE
     # ========================================================================
@@ -256,7 +264,7 @@ while main_loop:
     
     # Get reward for next state
     reward = get_reward(next_state)
-    
+
     # Update Q-table using Q-learning formula
     current_q = q_table.get((current_state, action), 0)
     max_next_q = max([q_table.get((next_state, a), 0) for a in actions])
