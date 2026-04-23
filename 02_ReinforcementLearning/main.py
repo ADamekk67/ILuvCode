@@ -19,7 +19,7 @@ grid_size =  20
 grid_width = SCREEN_WIDTH // grid_size
 grid_height = SCREEN_HEIGHT // grid_size
 
-FPS = 30
+FPS = 60
 # ============================================================================
 # VISUAL ELEMENTS
 # ============================================================================
@@ -49,16 +49,14 @@ try:
         loaded_data = json.load(f)
         collected_data = {
             "Steps Taken Total": loaded_data.get("Steps Taken Total", 0),
-            "Safe Positions": set(tuple(item) for item in loaded_data.get("Safe Positions", [])),
-            "Unsafe Positions": set(tuple(item) for item in loaded_data.get("Unsafe Positions", [(0, 0)]))
-        }
+            "Q_values": {tuple(key.rsplit('_', 1)[0].strip('()').split(', ')): value for key, value in loaded_data.get("Q_values", {}).items()}
+            }
         print("Data loaded successfully")
 except FileNotFoundError:
     print("FileNotFound - Initializing new data")
     collected_data = {
         "Steps Taken Total": 0,
-        "Safe Positions":  set(),
-        "Unsafe Positions": set()
+        "Q_values": {}
     }
 try:
     with open("MapLayout.json", 'r') as f:
@@ -103,7 +101,7 @@ actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 action_steps = 50     # Movement step size (pixels per action)
 
 penalty = -1 # Penalty for unsafe positions
-gift = 1 # Reward
+safe = 1 # Reward for safe positions
 # ============================================================================
 # THREADING
 # ============================================================================
@@ -130,13 +128,11 @@ def pixel_to_grid_coords(mouse_x, mouse_y):
 
 def get_reward(state):
     """Calculate reward based on current state."""
-    if state in collected_data["Unsafe Positions"] or state in map_layout["Unsafe Blocks"]:
-        return gift
-    elif state in collected_data["Safe Positions"]:
+    if state in map_layout["Unsafe Blocks"]:
         return penalty
-    return 0
-
-
+    else:
+        return safe
+    
 def epsilon_greedy(state):
     """Select action using epsilon-greedy policy."""
     if random.random() < epsilon:
@@ -224,9 +220,8 @@ while main_loop:
             
             # Save data to JSON file
             data_to_save = collected_data.copy()
-            data_to_save["Safe Positions"] = list(collected_data["Safe Positions"])
-            data_to_save["Unsafe Positions"] = list(collected_data["Unsafe Positions"])
             data_to_save["Steps Taken Total"] += steps_taken
+            data_to_save["Q_values"] = {f"{state}_{action}": q for (state, action), q in q_table.items()}
             with open("DataSave.json", 'w') as f:
                 json.dump(data_to_save, f, indent=4)
             
@@ -279,5 +274,4 @@ while main_loop:
     
     # Track position as safe (using grid coordinates)
     current_grid_state = get_state(turtle_x, turtle_y)
-    collected_data["Safe Positions"].add(current_grid_state)
     pygame.time.Clock().tick(FPS)
