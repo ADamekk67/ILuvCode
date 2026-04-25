@@ -32,29 +32,32 @@ steps_taken = 0
 turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)  
 unsafe_color = (255, 0, 0)
 unsafe_size = 49
-unsafe_positions_count = 0
 # ============================================================================
 # GAME STATE
 # ============================================================================
 main_loop = True
-printQ = True  # Set to True to print Q-learning details each step
+printQ = False  # Set to True to print Q-learning details each step
 # ============================================================================
 # DATA COLLECTION
 # ============================================================================
 
-print("Loading MapLayout.json if they exist...")
+print("Loading MapLayout.json if it exists...")
 
 try:
     with open("MapLayout.json", 'r') as f:
         map_data = json.load(f)
         map_layout = {
-            "Unsafe Blocks": set(tuple(item) for item in map_data.get("Unsafe Blocks", []))
+            "Unsafe Blocks": set(tuple(item) for item in map_data.get("Unsafe Blocks", [])),
+            "Blue Blocks": set(tuple(item) for item in map_data.get("Blue Blocks", [])),
+            "Yellow Blocks": set(tuple(item) for item in map_data.get("Yellow Blocks", []))
         }
         print("Map data loaded successfully")
 except FileNotFoundError:
     print("MapLayout.json not found - No map data loaded")
     map_layout = {
-        "Unsafe Blocks": set()
+        "Unsafe Blocks": set(),
+        "Blue Blocks": set(),
+        "Yellow Blocks": set()
     }
 
 
@@ -85,7 +88,7 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # Exploration rate (epsilon) controls exploration vs exploitation balance.
 # 0.5 means 50% random exploration, 50% using best known strategy.
 # As the turtle learns, you may want to lower this to favor learned strategies.
-epsilon = 0.2       # Exploration rate (0-1): probability of random action
+epsilon = 1       # Exploration rate (0-1): probability of random action
 # Epsilon decay parameters
 epsilon_min = 0    # Minimum exploration rate
 epsilon_decay = 0.999 # How much epsilon decreases each step
@@ -99,16 +102,17 @@ action_steps = 50     # Movement step size (pixels per action)
 
 # Rewards for the turtle's actions: negative for unsafe positions, positive for safe positions.
 
-penalty = 2 # Penalty for unsafe positions
-safe = -1 # Reward for safe positions
-gold = 10 # Reward for reaching the goal (if implemented)
+white = 0 # Reward for safe positions
+red = -1 # Penalty for unsafe positions
+blue = 1 # Reward for blue blocks
+yellow = 3 # Reward for yellow blocks
 # ============================================================================
-# THREADING
+# OTHER CONFIGURATION
 # ============================================================================
 render_lock = threading.Lock()
 render_stop = threading.Event()
 
-
+Mode = 1
 
 # ============================================================================
 # GAME FUNCTIONS
@@ -129,9 +133,13 @@ def pixel_to_grid_coords(mouse_x, mouse_y):
 def get_reward(state):
     """Calculate reward based on current state."""
     if state in map_layout["Unsafe Blocks"]:
-        return penalty
+        return red
+    elif state in map_layout["Blue Blocks"]:
+        return blue
+    elif state in map_layout["Yellow Blocks"]:
+        return yellow
     else:
-        return safe
+        return white
     
 def epsilon_greedy(state):
     """Select action using epsilon-greedy policy."""
@@ -177,11 +185,23 @@ def render_thread():
                                 (SCREEN_WIDTH - 1, i * grid_height - 1))
             
             # Draw all unsafe zones
-            for unsafe_grid_x, unsafe_grid_y in map_layout.get("Unsafe Blocks", []):
+            for unsafe_grid_x, unsafe_grid_y in map_layout.get ("Unsafe Blocks", []):
                 unsafe_pixel_x = unsafe_grid_x * grid_width
                 unsafe_pixel_y = unsafe_grid_y * grid_height
                 pygame.draw.rect(screen, unsafe_color, 
                                 (unsafe_pixel_x, unsafe_pixel_y, unsafe_size, unsafe_size))
+            # Draw all blue blocks
+            for blue_grid_x, blue_grid_y in map_layout.get("Blue Blocks", []):
+                blue_pixel_x = blue_grid_x * grid_width
+                blue_pixel_y = blue_grid_y * grid_height
+                pygame.draw.rect(screen, (0, 0, 255), 
+                                (blue_pixel_x, blue_pixel_y, unsafe_size, unsafe_size))
+            # Draw all yellow blocks
+            for yellow_grid_x, yellow_grid_y in map_layout.get("Yellow Blocks", []):
+                yellow_pixel_x = yellow_grid_x * grid_width
+                yellow_pixel_y = yellow_grid_y * grid_height
+                pygame.draw.rect(screen, (255, 255, 0), 
+                                (yellow_pixel_x, yellow_pixel_y, unsafe_size, unsafe_size))
 
             # Draw UI text
             position_text = text_font.render(
@@ -191,10 +211,6 @@ def render_thread():
             steps_text = text_font.render(
                 f"Steps Taken: {steps_taken}", True, (0, 0, 0))
             screen.blit(steps_text, (10, 70))
-            
-            epsilon_text = text_font.render(
-                f"Epsilon: {epsilon:.3f}", True, (0, 0, 0))
-            screen.blit(epsilon_text, (10, 110))
 
             pygame.draw.rect(screen, turtle_color, 
                             (turtle_x, turtle_y, turtle_size, turtle_size))
@@ -229,28 +245,53 @@ while main_loop:
 
             # Save map layout to JSON file
             map_data_to_save = {
-                "Unsafe Blocks": list(map_layout.get("Unsafe Blocks", []))
+                "Unsafe Blocks": list(map_layout.get("Unsafe Blocks", [])),
+                "Blue Blocks": list(map_layout.get("Blue Blocks", [])),
+                "Yellow Blocks": list(map_layout.get("Yellow Blocks", []))
             }
             with open("MapLayout.json", 'w') as f:
                 json.dump(map_data_to_save, f, indent=4)
             break
         
-        # Handle mouse clicks to mark unsafe positions
+# ========================================================================
+# User Interaction/Input
+# ========================================================================
+        
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:  # Left click
+            if event.button == 1 and Mode == 1:  # Left click
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
                 map_layout["Unsafe Blocks"].add(grid_state)
+            elif event.button == 1 and Mode == 2:  # Left click to Blue block
+                mouse_x, mouse_y = event.pos
+                grid_state = get_state(mouse_x, mouse_y)
+                map_layout["Unsafe Blocks"].discard(grid_state)  # Remove from unsafe if present
+                map_layout["Blue Blocks"].add(grid_state)  # Add to blue blocks
+            elif event.button == 1 and Mode == 3:  # Left click to Yellow block
+                mouse_x, mouse_y = event.pos
+                grid_state = get_state(mouse_x, mouse_y)
+                map_layout["Unsafe Blocks"].discard(grid_state)  # Remove from unsafe if present
+                map_layout["Yellow Blocks"].add(grid_state)  # Add to yellow blocks
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 3:  # Right click to remove unsafe block
+            if event.button == 3:  # Right click to any block
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
                 map_layout["Unsafe Blocks"].discard(grid_state)
+                map_layout["Blue Blocks"].discard(grid_state)
+                map_layout["Yellow Blocks"].discard(grid_state)
 
-    # ========================================================================
-    # Q-LEARNING UPDATE
-    # ========================================================================
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                if Mode == 1:
+                    Mode = 2
+                elif Mode == 2:
+                    Mode = 3
+                else:
+                    Mode = 1
+# ========================================================================
+# Q-LEARNING UPDATE
+# ========================================================================
     
     # Get current state
     current_state = get_state(turtle_x, turtle_y)
