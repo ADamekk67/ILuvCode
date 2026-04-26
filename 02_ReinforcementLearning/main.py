@@ -36,7 +36,7 @@ unsafe_size = 49
 # GAME STATE
 # ============================================================================
 main_loop = True
-printQ = False  # Set to True to print Q-learning details each step
+printQ = True  # Set to True to print Q-learning details each step
 # ============================================================================
 # DATA COLLECTION
 # ============================================================================
@@ -47,7 +47,8 @@ try:
     with open("MapLayout.json", 'r') as f:
         map_data = json.load(f)
         map_layout = {
-            "Unsafe Blocks": set(tuple(item) for item in map_data.get("Unsafe Blocks", [])),
+            "Black Blocks": set(tuple(item) for item in map_data.get("Black Blocks", [])),
+            "Red Blocks": set(tuple(item) for item in map_data.get("Red Blocks", [])),
             "Blue Blocks": set(tuple(item) for item in map_data.get("Blue Blocks", [])),
             "Yellow Blocks": set(tuple(item) for item in map_data.get("Yellow Blocks", []))
         }
@@ -55,7 +56,8 @@ try:
 except FileNotFoundError:
     print("MapLayout.json not found - No map data loaded")
     map_layout = {
-        "Unsafe Blocks": set(),
+        "Black Blocks": set(),
+        "Red Blocks": set(),
         "Blue Blocks": set(),
         "Yellow Blocks": set()
     }
@@ -90,8 +92,8 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # As the turtle learns, you may want to lower this to favor learned strategies.
 epsilon = 1       # Exploration rate (0-1): probability of random action
 # Epsilon decay parameters
-epsilon_min = 0    # Minimum exploration rate
-epsilon_decay = 0.999 # How much epsilon decreases each step
+epsilon_min = 0.1   # Minimum exploration rate
+epsilon_decay = 0.99 # How much epsilon decreases each step
 
 # Available directions the turtle can move in
 actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
@@ -101,9 +103,9 @@ actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 action_steps = 50     # Movement step size (pixels per action)
 
 # Rewards for the turtle's actions: negative for unsafe positions, positive for safe positions.
-
+black = -1 # Wall 
 white = 0 # Reward for safe positions
-red = -1 # Penalty for unsafe positions
+red = -2 # Penalty for unsafe positions
 blue = 1 # Reward for blue blocks
 yellow = 3 # Reward for yellow blocks
 # ============================================================================
@@ -112,7 +114,7 @@ yellow = 3 # Reward for yellow blocks
 render_lock = threading.Lock()
 render_stop = threading.Event()
 
-Mode = 1
+Mode = "Red"
 
 # ============================================================================
 # GAME FUNCTIONS
@@ -132,12 +134,14 @@ def pixel_to_grid_coords(mouse_x, mouse_y):
 
 def get_reward(state):
     """Calculate reward based on current state."""
-    if state in map_layout["Unsafe Blocks"]:
+    if state in map_layout["Red Blocks"]:
         return red
     elif state in map_layout["Blue Blocks"]:
         return blue
     elif state in map_layout["Yellow Blocks"]:
         return yellow
+    elif state in map_layout["Black Blocks"]:
+        return black
     else:
         return white
     
@@ -184,19 +188,26 @@ def render_thread():
                 pygame.draw.line(screen, grid_color, (0, i * grid_height - 1), 
                                 (SCREEN_WIDTH - 1, i * grid_height - 1))
             
-            # Draw all unsafe zones
-            for unsafe_grid_x, unsafe_grid_y in map_layout.get ("Unsafe Blocks", []):
+            # Draw all Black blocks (walls)
+            for black_grid_x, black_grid_y in map_layout.get("Black Blocks", []):
+                black_pixel_x = black_grid_x * grid_width
+                black_pixel_y = black_grid_y * grid_height
+                pygame.draw.rect(screen, (0, 0, 0), 
+                                (black_pixel_x, black_pixel_y, unsafe_size, unsafe_size))
+
+            # Draw all Red blocks (unsafe blocks)
+            for unsafe_grid_x, unsafe_grid_y in map_layout.get ("Red Blocks", []):
                 unsafe_pixel_x = unsafe_grid_x * grid_width
                 unsafe_pixel_y = unsafe_grid_y * grid_height
                 pygame.draw.rect(screen, unsafe_color, 
                                 (unsafe_pixel_x, unsafe_pixel_y, unsafe_size, unsafe_size))
-            # Draw all blue blocks
+            # Draw all blue blocks (small reward blocks)
             for blue_grid_x, blue_grid_y in map_layout.get("Blue Blocks", []):
                 blue_pixel_x = blue_grid_x * grid_width
                 blue_pixel_y = blue_grid_y * grid_height
                 pygame.draw.rect(screen, (0, 0, 255), 
                                 (blue_pixel_x, blue_pixel_y, unsafe_size, unsafe_size))
-            # Draw all yellow blocks
+            # Draw all yellow blocks (big reward blocks)
             for yellow_grid_x, yellow_grid_y in map_layout.get("Yellow Blocks", []):
                 yellow_pixel_x = yellow_grid_x * grid_width
                 yellow_pixel_y = yellow_grid_y * grid_height
@@ -211,6 +222,10 @@ def render_thread():
             steps_text = text_font.render(
                 f"Steps Taken: {steps_taken}", True, (0, 0, 0))
             screen.blit(steps_text, (10, 70))
+
+            mode_text = text_font.render(
+                f"Current Mode: {Mode}", True, (0, 0, 0))
+            screen.blit(mode_text, (10, 130))
 
             pygame.draw.rect(screen, turtle_color, 
                             (turtle_x, turtle_y, turtle_size, turtle_size))
@@ -245,9 +260,10 @@ while main_loop:
 
             # Save map layout to JSON file
             map_data_to_save = {
-                "Unsafe Blocks": list(map_layout.get("Unsafe Blocks", [])),
+                "Red Blocks": list(map_layout.get("Red Blocks", [])),
                 "Blue Blocks": list(map_layout.get("Blue Blocks", [])),
-                "Yellow Blocks": list(map_layout.get("Yellow Blocks", []))
+                "Yellow Blocks": list(map_layout.get("Yellow Blocks", [])),
+                "Black Blocks": list(map_layout.get("Black Blocks", []))
             }
             with open("MapLayout.json", 'w') as f:
                 json.dump(map_data_to_save, f, indent=4)
@@ -258,37 +274,42 @@ while main_loop:
 # ========================================================================
         
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1 and Mode == 1:  # Left click
+            if event.button == 1 and Mode == "Red":  # Left click
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Unsafe Blocks"].add(grid_state)
-            elif event.button == 1 and Mode == 2:  # Left click to Blue block
+                map_layout["Red Blocks"].add(grid_state)
+            elif event.button == 1 and Mode == "Blue":  # Left click to Blue block
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Unsafe Blocks"].discard(grid_state)  # Remove from unsafe if present
                 map_layout["Blue Blocks"].add(grid_state)  # Add to blue blocks
-            elif event.button == 1 and Mode == 3:  # Left click to Yellow block
+            elif event.button == 1 and Mode == "Yellow":  # Left click to Yellow block
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Unsafe Blocks"].discard(grid_state)  # Remove from unsafe if present
                 map_layout["Yellow Blocks"].add(grid_state)  # Add to yellow blocks
+            elif event.button == 1 and Mode == "Black":  # Left click to Black block
+                mouse_x, mouse_y = event.pos
+                grid_state = get_state(mouse_x, mouse_y)
+                map_layout["Black Blocks"].add(grid_state)  # Add to black blocks
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 3:  # Right click to any block
                 mouse_x, mouse_y = event.pos
                 grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Unsafe Blocks"].discard(grid_state)
+                map_layout["Red Blocks"].discard(grid_state)
                 map_layout["Blue Blocks"].discard(grid_state)
                 map_layout["Yellow Blocks"].discard(grid_state)
+                map_layout["Black Blocks"].discard(grid_state)
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                if Mode == 1:
-                    Mode = 2
-                elif Mode == 2:
-                    Mode = 3
+                if Mode == "Red":
+                    Mode = "Blue"
+                elif Mode == "Blue":
+                    Mode = "Yellow"
+                elif Mode == "Yellow":
+                    Mode = "Black"
                 else:
-                    Mode = 1
+                    Mode = "Red"
 # ========================================================================
 # Q-LEARNING UPDATE
 # ========================================================================
@@ -305,6 +326,11 @@ while main_loop:
     
     # Get reward for next state
     reward = get_reward(next_state)
+
+    # If next state is a wall (black block), stay in current position and get wall penalty
+    if next_state in map_layout["Black Blocks"]:
+        next_x, next_y = turtle_x, turtle_y  # Stay in current position
+        reward = black  # Get wall penalty
 
     # Update Q-table using Q-learning formula
     current_q = q_table.get((current_state, action), 0)
