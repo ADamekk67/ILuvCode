@@ -19,7 +19,7 @@ grid_size =  20
 grid_width = SCREEN_WIDTH // grid_size
 grid_height = SCREEN_HEIGHT // grid_size
 
-FPS = 60
+FPS = 12
 # ============================================================================
 # VISUAL ELEMENTS
 # ============================================================================
@@ -72,6 +72,7 @@ except FileNotFoundError:
 try:
     with open("DataSave.json", 'r') as f:
         loaded_data = json.load(f)
+    
     q_table = {
     eval(k): v for k, v in loaded_data.get("Q_Table", {}).items()
 }
@@ -81,7 +82,7 @@ except FileNotFoundError:
 
 # Learning rate (alpha) controls how much new information overrides old knowledge.
 # 0.1 means new experiences have 10% influence, old knowledge has 90% influence.
-alpha = 0.1           # Learning rate (0-1): higher = learn faster but less stable
+alpha = 0.2           # Learning rate (0-1): higher = learn faster but less stable
 
 # Discount factor (gamma) determines how much we value future rewards vs immediate rewards.
 # 0.9 means we care a lot about future outcomes, 0.0 means only immediate reward matters.
@@ -90,10 +91,10 @@ gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 # Exploration rate (epsilon) controls exploration vs exploitation balance.
 # 0.5 means 50% random exploration, 50% using best known strategy.
 # As the turtle learns, you may want to lower this to favor learned strategies.
-epsilon = 1       # Exploration rate (0-1): probability of random action
+epsilon = 0     # Exploration rate (0-1): probability of random action
 # Epsilon decay parameters
-epsilon_min = 0.1   # Minimum exploration rate
-epsilon_decay = 0.99 # How much epsilon decreases each step
+epsilon_min = 0.0 # Minimum exploration rate
+epsilon_decay = 0.999 # How much epsilon decreases each step
 
 # Available directions the turtle can move in
 actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
@@ -102,12 +103,6 @@ actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 # 50 pixels = 1 grid cell (since grid_width = grid_height = 50)
 action_steps = 50     # Movement step size (pixels per action)
 
-# Rewards for the turtle's actions: negative for unsafe positions, positive for safe positions.
-black = -1 # Wall 
-white = 0 # Reward for safe positions
-red = -2 # Penalty for unsafe positions
-blue = 1 # Reward for blue blocks
-yellow = 3 # Reward for yellow blocks
 # ============================================================================
 # OTHER CONFIGURATION
 # ============================================================================
@@ -115,6 +110,17 @@ render_lock = threading.Lock()
 render_stop = threading.Event()
 
 Mode = "Red"
+
+# Rewards for the turtle's actions: negative for unsafe positions, positive for rewards, and negative for walls.
+black = -1 # Wall 
+white = 0 # Reward for safe positions
+red = -2 # Penalty for unsafe positions
+blue = 1 # Reward for blue blocks
+yellow = 5 # Reward for yellow blocks
+
+# Track previous state for repeated movement detection
+previous_state = None
+repeated_movement_penalty = -0.5  # Penalty for repeating movements
 
 # ============================================================================
 # GAME FUNCTIONS
@@ -171,6 +177,9 @@ def get_next_position(x, y, action):
         return (min(max_x, x + action_steps), y)
     return (x, y)
 
+# ============================================================================
+# RENDER LOOP
+# ============================================================================
 
 def render_thread():
     """Rendering loop running in a separate thread."""
@@ -301,7 +310,7 @@ while main_loop:
                 map_layout["Black Blocks"].discard(grid_state)
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
+            if event.key == pygame.K_t:
                 if Mode == "Red":
                     Mode = "Blue"
                 elif Mode == "Blue":
@@ -310,6 +319,11 @@ while main_loop:
                     Mode = "Black"
                 else:
                     Mode = "Red"
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                # Reset turtle position and Q-table
+                turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)
 # ========================================================================
 # Q-LEARNING UPDATE
 # ========================================================================
@@ -327,10 +341,17 @@ while main_loop:
     # Get reward for next state
     reward = get_reward(next_state)
 
+    # Apply penalty for repeated movement (going back to previous state)
+    if previous_state is not None and next_state == previous_state:
+        reward += repeated_movement_penalty
+        print(f"Repeated movement penalty applied! Reward: {reward}")
+
     # If next state is a wall (black block), stay in current position and get wall penalty
     if next_state in map_layout["Black Blocks"]:
         next_x, next_y = turtle_x, turtle_y  # Stay in current position
         reward = black  # Get wall penalty
+    if next_state in map_layout["Blue Blocks"]: # If next state is a blue block, get small reward and remove the block
+        map_layout["Blue Blocks"].remove(next_state)  # Remove blue block after collecting reward
 
     # Update Q-table using Q-learning formula
     current_q = q_table.get((current_state, action), 0)
@@ -344,6 +365,10 @@ while main_loop:
     turtle_x = next_x
     turtle_y = next_y
     steps_taken += 1
+    
+    # Track previous state for next iteration
+    previous_state = current_state
+    
     if printQ:
         print(f"Action: {action}, Reward: {reward}, New Q-value: {q_table[(current_state, action)]:.2f}, Epsilon: {epsilon:.3f}")
     
