@@ -7,6 +7,10 @@ import my_library
 
 print("\n ====================================================================")
 pygame.init()
+
+# 1 AI turtle
+# 2 AI damian
+
 # ============================================================================
 # ENVIRONMENT CONFIGURATION
 # ============================================================================
@@ -14,10 +18,6 @@ SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 1000
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 background_color = (255, 255, 255)
-grid_color = (0, 0, 0)
-grid_size =  20
-grid_width = SCREEN_WIDTH // grid_size
-grid_height = SCREEN_HEIGHT // grid_size
 
 FPS = 120
 # ============================================================================
@@ -47,19 +47,13 @@ try:
     with open("MapLayout.json", 'r') as f:
         map_data = json.load(f)
         map_layout = {
-            "Black Blocks": set(tuple(item) for item in map_data.get("Black Blocks", [])),
-            "Red Blocks": set(tuple(item) for item in map_data.get("Red Blocks", [])),
-            "Blue Blocks": set(tuple(item) for item in map_data.get("Blue Blocks", [])),
-            "Yellow Blocks": set(tuple(item) for item in map_data.get("Yellow Blocks", []))
+            
         }
         print("Map data loaded successfully")
 except FileNotFoundError:
     print("MapLayout.json not found - No map data loaded")
     map_layout = {
-        "Black Blocks": set(),
-        "Red Blocks": set(),
-        "Blue Blocks": set(),
-        "Yellow Blocks": set()
+        
     }
 
 
@@ -109,15 +103,6 @@ action_steps = 50     # Movement step size (pixels per action)
 render_lock = threading.Lock()
 render_stop = threading.Event()
 
-Mode = "Red"
-
-# Rewards for the turtle's actions: negative for unsafe positions, positive for rewards, and negative for walls.
-black = -1 # Wall 
-white = 0 # Reward for safe positions
-red = -2 # Penalty for unsafe positions
-blue = 1 # Reward for blue blocks
-yellow = 5 # Reward for yellow blocks
-
 # Track previous state for repeated movement detection
 previous_state = None
 repeated_movement_penalty = -0.5  # Penalty for repeating movements
@@ -129,13 +114,6 @@ repeated_movement_penalty = -0.5  # Penalty for repeating movements
 def get_state(x, y):
     """Convert pixel coordinates to grid state."""
     return (x // grid_width, y // grid_height)
-
-
-def pixel_to_grid_coords(mouse_x, mouse_y):
-    """Convert mouse pixel coordinates to grid cell coordinates (top-left corner)."""
-    grid_x = (mouse_x // grid_width) * grid_width
-    grid_y = (mouse_y // grid_height) * grid_height
-    return (grid_x, grid_y)
 
 
 def get_reward(state):
@@ -269,10 +247,6 @@ while main_loop:
 
             # Save map layout to JSON file
             map_data_to_save = {
-                "Red Blocks": list(map_layout.get("Red Blocks", [])),
-                "Blue Blocks": list(map_layout.get("Blue Blocks", [])),
-                "Yellow Blocks": list(map_layout.get("Yellow Blocks", [])),
-                "Black Blocks": list(map_layout.get("Black Blocks", []))
             }
             with open("MapLayout.json", 'w') as f:
                 json.dump(map_data_to_save, f, indent=4)
@@ -281,49 +255,11 @@ while main_loop:
 # ========================================================================
 # User Interaction/Input
 # ========================================================================
-        
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1 and Mode == "Red":  # Left click
-                mouse_x, mouse_y = event.pos
-                grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Red Blocks"].add(grid_state)
-            elif event.button == 1 and Mode == "Blue":  # Left click to Blue block
-                mouse_x, mouse_y = event.pos
-                grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Blue Blocks"].add(grid_state)  # Add to blue blocks
-            elif event.button == 1 and Mode == "Yellow":  # Left click to Yellow block
-                mouse_x, mouse_y = event.pos
-                grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Yellow Blocks"].add(grid_state)  # Add to yellow blocks
-            elif event.button == 1 and Mode == "Black":  # Left click to Black block
-                mouse_x, mouse_y = event.pos
-                grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Black Blocks"].add(grid_state)  # Add to black blocks
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 3:  # Right click to any block
-                mouse_x, mouse_y = event.pos
-                grid_state = get_state(mouse_x, mouse_y)
-                map_layout["Red Blocks"].discard(grid_state)
-                map_layout["Blue Blocks"].discard(grid_state)
-                map_layout["Yellow Blocks"].discard(grid_state)
-                map_layout["Black Blocks"].discard(grid_state)
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_r:
+            pass        
 
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_t:
-                if Mode == "Red":
-                    Mode = "Blue"
-                elif Mode == "Blue":
-                    Mode = "Yellow"
-                elif Mode == "Yellow":
-                    Mode = "Black"
-                else:
-                    Mode = "Red"
-
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                # Reset turtle position and Q-table
-                turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)
 # ========================================================================
 # Q-LEARNING UPDATE
 # ========================================================================
@@ -340,20 +276,6 @@ while main_loop:
     
     # Get reward for next state
     reward = get_reward(next_state)
-
-    # Apply penalty for repeated movement (going back to previous state)
-    if previous_state is not None and next_state == previous_state:
-        reward += repeated_movement_penalty
-        print(f"Repeated movement penalty applied! Reward: {reward}")
-
-    # If next state is a wall (black block), stay in current position and get wall penalty
-    if next_state in map_layout["Black Blocks"]:
-        next_x, next_y = turtle_x, turtle_y  # Stay in current position
-        reward = black  # Get wall penalty
-    if next_state in map_layout["Blue Blocks"]: # If next state is a blue block, get small reward and remove the block
-        map_layout["Blue Blocks"].remove(next_state)  # Remove blue block after collecting reward
-    if next_state in map_layout["Yellow Blocks"]: # 
-        next_x, next_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)
 
     # Update Q-table using Q-learning formula
     current_q = q_table.get((current_state, action), 0)
