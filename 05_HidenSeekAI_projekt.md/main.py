@@ -26,19 +26,22 @@ FPS = 120
 text_font = pygame.font.SysFont("Arial", 24)
 
 # Turtle properties (Bob the turtle :D )
-turtle_size = 49
-turtle_color = (0, 255, 0)
-steps_taken = 0
-turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)  
-unsafe_color = (255, 0, 0)
-unsafe_size = 49
+HiderSize = 50
+HiderColor = (0, 0, 255)
+HiderX, HiderY = ((SCREEN_WIDTH // 2 - HiderSize // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - HiderSize // 2 - 25) - 1) # Start location
+
+# Damian properties
+SeekerColor = (255, 0, 0)
+SeekerSize = 50
+SeekerX, SeekerY = ((SCREEN_WIDTH // 2 - SeekerSize // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - SeekerSize // 2 - 25) - 1) # Start location
+
 # ============================================================================
 # GAME STATE
 # ============================================================================
 main_loop = True
-printQ = True  # Set to True to print Q-learning details each step
+
 # ============================================================================
-# DATA COLLECTION
+# DATA LOADING
 # ============================================================================
 
 print("Loading MapLayout.json if it exists...")
@@ -80,22 +83,20 @@ alpha = 0.2           # Learning rate (0-1): higher = learn faster but less stab
 
 # Discount factor (gamma) determines how much we value future rewards vs immediate rewards.
 # 0.9 means we care a lot about future outcomes, 0.0 means only immediate reward matters.
-gamma = 0.9           # Discount factor (0-1): how much to value future rewards
+gamma = 0.4           # Discount factor (0-1): how much to value future rewards
 
 # Exploration rate (epsilon) controls exploration vs exploitation balance.
 # 0.5 means 50% random exploration, 50% using best known strategy.
 # As the turtle learns, you may want to lower this to favor learned strategies.
 epsilon = 1    # Exploration rate (0-1): probability of random action
 # Epsilon decay parameters
-epsilon_min = 0.0 # Minimum exploration rate
+epsilon_min = 0.2 # Minimum exploration rate
 epsilon_decay = 0.999 # How much epsilon decreases each step
 
 # Available directions the turtle can move in
-actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
+MoveActions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 
-# Distance the turtle moves per action (in pixels).
-# 50 pixels = 1 grid cell (since grid_width = grid_height = 50)
-action_steps = 50     # Movement step size (pixels per action)
+
 
 # ============================================================================
 # OTHER CONFIGURATION
@@ -132,11 +133,11 @@ def get_reward(state):
 def epsilon_greedy(state):
     """Select action using epsilon-greedy policy."""
     if random.random() < epsilon:
-        return random.choice(actions)
+        return random.choice(MoveActions)
     else:
-        q_values = [q_table.get((state, a), 0) for a in actions]
+        q_values = [q_table.get((state, a), 0) for a in MoveActions]
         max_q = max(q_values)
-        best_actions = [a for a in actions if q_table.get((state, a), 0) == max_q]
+        best_actions = [a for a in MoveActions if q_table.get((state, a), 0) == max_q]
         return random.choice(best_actions)
 
 def get_next_position(x, y, action):
