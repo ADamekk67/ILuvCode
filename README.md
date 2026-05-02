@@ -6,4 +6,4 @@
 | 2 | ReinforcementLearning | 2026-04-22 |
 | 3 | PianoTiles | 2026-04-22 |
 | 4 | Sphere | 2026-04-22 |
-| 5 | Dailyo | 2026-05-02 |
+| 5 | DailYO | 2026-05-02 |
