@@ -3,7 +3,6 @@ import json
 import random
 import threading
 
-import my_library
 
 print("\n ====================================================================")
 pygame.init()
@@ -25,7 +24,7 @@ FPS = 120
 # ============================================================================
 text_font = pygame.font.SysFont("Arial", 24)
 
-# Turtle properties (Bob the turtle :D )
+# Turtle properties (Bob :D)
 turtle_size = 49
 turtle_color = (0, 255, 0)
 steps_taken = 0
@@ -81,20 +80,16 @@ except FileNotFoundError:
     q_table = {}  
 
 # Learning rate (alpha) controls how much new information overrides old knowledge.
-# 0.1 means new experiences have 10% influence, old knowledge has 90% influence.
 alpha = 0.2           # Learning rate (0-1): higher = learn faster but less stable
 
 # Discount factor (gamma) determines how much we value future rewards vs immediate rewards.
-# 0.9 means we care a lot about future outcomes, 0.0 means only immediate reward matters.
 gamma = 0.9           # Discount factor (0-1): how much to value future rewards
 
 # Exploration rate (epsilon) controls exploration vs exploitation balance.
-# 0.5 means 50% random exploration, 50% using best known strategy.
-# As the turtle learns, you may want to lower this to favor learned strategies.
 epsilon = 1    # Exploration rate (0-1): probability of random action
 # Epsilon decay parameters
 epsilon_min = 0.0 # Minimum exploration rate
-epsilon_decay = 0.999 # How much epsilon decreases each step
+epsilon_decay = 0.99 # How much epsilon decreases each step
 
 # Available directions the turtle can move in
 actions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
@@ -122,9 +117,6 @@ yellow = 5 # Reward for yellow blocks
 previous_state = None
 repeated_movement_penalty = -0.5  # Penalty for repeating movements
 
-# ============================================================================
-# GAME FUNCTIONS
-# ============================================================================
 
 def get_state(x, y):
     """Convert pixel coordinates to grid state."""
@@ -324,6 +316,11 @@ while main_loop:
             if event.key == pygame.K_r:
                 # Reset turtle position and Q-table
                 turtle_x, turtle_y = ((SCREEN_WIDTH // 2 - turtle_size // 2 - 25) - 1, (SCREEN_HEIGHT // 2 - turtle_size // 2 - 25) - 1)
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p:
+                printQ = not printQ  # Toggle Q-learning details printing
+        
 # ========================================================================
 # Q-LEARNING UPDATE
 # ========================================================================
