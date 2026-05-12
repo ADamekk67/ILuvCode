@@ -1,8 +1,9 @@
+import tkinter as tk
 import customtkinter as ctk
 from pathlib import Path
 import json
 
-version = "v0.1.6"  # app version
+version = "v0.1.7"  # app version
 
 # Directories
 script_dir = Path(__file__).resolve().parent
@@ -10,15 +11,13 @@ assets_dir = script_dir / "assets"
 settings_file = assets_dir / "settings.json"
 # constants
 max_nodes = 20
+
 # variables
 window_size = ("1200x600")
-
-
-
 ctk.set_appearance_mode("dark")  # Modes: "System" (default), "Dark", "Light"
+nodes = []
 
-
-class App(ctk.CTk):
+class App(ctk.CTk): 
     def __init__(self):
         super().__init__()
 
@@ -37,16 +36,44 @@ class App(ctk.CTk):
 
         if icon_path.exists():
             self.iconbitmap(str(icon_path))
+        else:
+            print(f"Warning: Icon file not found at {icon_path}")
     
         content_frame = ctk.CTkFrame(self)
         content_frame.pack(fill="both", expand=True, padx=10, pady=10)
         content_frame.bind("<Button-3>", self.on_right_click)  # Right-click event
 
-    # on right-click event handler
-    def on_right_click(self, event): # show menu on right-click
-        print(f"Right-clicked at x={event.x}, y={event.y}")
-        frame_menu = ctk.CTkFrame(self, width=150, height=100)
+        # create the right-click quick menu ( qm = quick menu )
+        self.context_menu = tk.Menu(self, tearoff=0, font=("Arial", 12), bg="#333333", fg="#FFFFFF", activebackground="#555555", activeforeground="#FFFFFF")
+        self.context_menu.add_command(label="New Node", command=lambda: self.qm_new_node()) # 1st menu item to create a new node
+        self.context_menu.add_command(label="Nodes List", command=lambda: print(f"Current nodes: {nodes}")) # 2nd menu item to show current nodes (placeholder)
+        self.context_menu.add_command(label="Remove Node", command=lambda: self.qm_remove_node()) # 3rd menu item to remove the last node (placeholder)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Settings", command=lambda: print("Open settings (placeholder)")) # 4th menu item to open settings (placeholder)
 
+
+#
+# Quick menu functions
+#
+    # on right-click event handler
+    def on_right_click(self, event):  # show menu on right-click
+        print(f"Right-clicked at x={event.x}, y={event.y}")
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+    
+    def qm_new_node(self):
+        dialog = ctk.CTkInputDialog(title="New Node", text="Enter node name:")
+        name = dialog.get_input()
+        nodes.append(name)  # Add the new node to the list
+
+    def qm_remove_node(self):
+        if nodes:
+            removed_node = nodes.pop()  # Remove the last node from the list
+            print(f"Removed node: {removed_node}")
+        else:
+            print("No nodes to remove.")
 
 if __name__ == "__main__":
     app = App()
