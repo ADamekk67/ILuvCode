@@ -41,39 +41,40 @@ class App(ctk.CTk):
     
         content_frame = ctk.CTkFrame(self)
         content_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        content_frame.bind("<Button-3>", self.on_right_click)  # Right-click event
+        content_frame.bind("<Button-3>", self.qm_on_right_click)  # Right-click event
 
         # create the right-click quick menu ( qm = quick menu )
         self.context_menu = tk.Menu(self, tearoff=0, font=("Arial", 12), bg="#333333", fg="#FFFFFF", activebackground="#555555", activeforeground="#FFFFFF")
         self.context_menu.add_command(label="New Node", command=lambda: self.qm_new_node()) # 1st menu item to create a new node
-        self.context_menu.add_command(label="Nodes List", command=lambda: print(f"Current nodes: {nodes}")) # 2nd menu item to show current nodes (placeholder)
-        self.context_menu.add_command(label="Remove Node", command=lambda: self.qm_remove_node()) # 3rd menu item to remove the last node (placeholder)
-        self.context_menu.add_separator()
         self.context_menu.add_command(label="Settings", command=lambda: print("Open settings (placeholder)")) # 4th menu item to open settings (placeholder)
-
 
 #
 # Quick menu functions
 #
     # on right-click event handler
-    def on_right_click(self, event):  # show menu on right-click
+    def qm_on_right_click(self, event):  # show menu on right-click
         print(f"Right-clicked at x={event.x}, y={event.y}")
         try:
             self.context_menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.context_menu.grab_release()
     
+    # function to create a new node
     def qm_new_node(self):
         dialog = ctk.CTkInputDialog(title="New Node", text="Enter node name:")
         name = dialog.get_input()
         nodes.append(name)  # Add the new node to the list
+        
+        print(f"Created new node: {name}")
 
-    def qm_remove_node(self):
-        if nodes:
-            removed_node = nodes.pop()  # Remove the last node from the list
-            print(f"Removed node: {removed_node}")
-        else:
-            print("No nodes to remove.")
+    for node in nodes:
+        print(f"Node: {node}")
+#
+# Node menu functions
+#
+
+
+
 
 if __name__ == "__main__":
     app = App()
