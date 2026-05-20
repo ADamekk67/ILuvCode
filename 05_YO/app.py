@@ -15,7 +15,6 @@ nodes = []
 
 # Visual Variables
 ctk.set_appearance_mode("dark")  # Modes: "System" (default), "Dark", "Light"
-
 class CustomizableFrame(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         # Slightly wider and taller to fit our new interactive tools
@@ -24,19 +23,13 @@ class CustomizableFrame(ctk.CTkFrame):
         # Prevent frame from collapsing around empty space
         self.pack_propagate(False)
         
-        # 1. Editable Title (Replaces the static Label)
-        # We use transparent background and low border width so it looks like a clean title until clicked
-        self.title_entry = ctk.CTkEntry(
-            self, 
-            placeholder_text="Untitled", 
-            font=("Arial", 13, "bold"), 
-            fg_color="transparent", 
-            border_width=1, 
-            height=28
-        )
-        self.title_entry.pack(fill="x", padx=10, pady=(10, 5))
+        # Track the title string state
+        self.title_text = "Untitled Node"
+        self.title_widget = None  # Holds either the Label or the Entry widget
+
+        # 1. Main Textbox Content Area
+        # We define this first so we can use it as a structural anchor for packing
         
-        # 2. Multi-line Content/Notes Area
         self.textbox = ctk.CTkTextbox(
             self, 
             fg_color="#1F1F1F", 
@@ -44,7 +37,62 @@ class CustomizableFrame(ctk.CTkFrame):
             font=("Arial", 11)
         )
         self.textbox.pack(fill="both", expand=True, padx=10, pady=5)
-        self.textbox.insert("0.0", "Text box...") # Default placeholder text
+        self.textbox.insert("0.0", "Text box...") 
+
+        # 2. Initialize the Title in Label Mode
+        self.show_label_mode()
+    
+    def show_label_mode(self, event=None):
+        """Swaps the title widget to a clean static Label."""
+        # Clean up the previous widget if it exists
+        if self.title_widget:
+            self.title_widget.destroy()
+
+        # Create the Label
+        self.title_widget = ctk.CTkLabel(
+            self, 
+            text=self.title_text, 
+            font=("Arial", 13, "bold"),
+            anchor="w" # Left-align the text
+        )
+        # 'before=self.textbox' guarantees it stays at the top of the frame layout
+        self.title_widget.pack(fill="x", padx=10, pady=(10, 5), before=self.textbox)
+        
+        # Bind the Double-Click event to enter Edit Mode
+        self.title_widget.bind("<Double-Button-1>", self.show_edit_mode)
+
+    def show_edit_mode(self, event=None):
+        """Swaps the title widget to an editable Entry field."""
+        if self.title_widget:
+            self.title_widget.destroy()
+
+        # Create the Entry field
+        self.title_widget = ctk.CTkEntry(
+            self, 
+            font=("Arial", 13, "bold"), 
+            fg_color="transparent", 
+            border_width=1, 
+            height=28
+        )
+        self.title_widget.insert(0, self.title_text)
+        self.title_widget.pack(fill="x", padx=10, pady=(10, 5), before=self.textbox)
+        
+        # Automatically focus the cursor into the field and select all text
+        self.title_widget.focus()
+        
+        # Bindings to save and exit edit mode
+        self.title_widget.bind("<Return>", self.save_title)    # Pressing Enter
+        self.title_widget.bind("<FocusOut>", self.save_title)  # Clicking anywhere else
+
+    def save_title(self, event=None):
+        """Saves the input value and turns the entry back into a label."""
+        if self.title_widget and isinstance(self.title_widget, ctk.CTkEntry):
+            new_text = self.title_widget.get().strip()
+            if new_text:  # Only update if the user actually typed something
+                self.title_text = new_text
+                
+        # Revert back to the clean label
+        self.show_label_mode()
 
 class ContextMenu(ctk.CTkFrame):
     def __init__(self, master, x, y, **kwargs):
