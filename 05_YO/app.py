@@ -110,6 +110,9 @@ class ContextMenu(ctk.CTkFrame):
         self.btn_option2 = ctk.CTkButton(self, text="Clear All", fg_color="transparent", hover_color="#67136E", height=25, command=self.action_clear_all)
         self.btn_option2.pack(fill="x", padx=5, pady=3)
 
+        self.switch_option3 = ctk.CTkSwitch(self, bg_color="#67136E")
+        self.switch_option3.pack(fill="x", padx=5, pady=3)
+
     def action_new_custom_frame(self): 
         # 1. Create the new frame inside the content_frame
         new_frame = CustomizableFrame(self.master_frame)
