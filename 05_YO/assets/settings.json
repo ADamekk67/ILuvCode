@@ -1,1 +1,17 @@
-{"window_size": "1200x600+78+78", "nodes": [{"name": "ASd", "widget": 
+{
+  "window_size": "1200x600+208+208",
+  "nodes": [
+    {
+      "name": "Untitled Nodeyx",
+      "text": "Text box...",
+      "x": 250,
+      "y": 199
+    },
+    {
+      "name": "Untitled Node",
+      "text": "Text box...",
+      "x": 517,
+      "y": 189
+    }
+  ]
+}
