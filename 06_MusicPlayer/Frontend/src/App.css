@@ -1,0 +1,96 @@
+:root {
+  background-color: #121212;
+  color: #e0e0e0;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.player-container {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 20px;
+  background-color: #181818;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.player-header h1 {
+  color: #1db954; /* Spotify Green */
+  margin-top: 0;
+  border-bottom: 1px solid #282828;
+  padding-bottom: 15px;
+}
+
+.player-body {
+  display: flex;
+  gap: 30px;
+}
+
+.song-list-section {
+  flex: 1;
+  border-right: 1px solid #282828;
+  padding-right: 20px;
+}
+
+.now-playing-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.song-list {
+  list-style: none;
+  padding: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.song-item {
+  padding: 12px;
+  margin-bottom: 5px;
+  background-color: #282828;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.song-item:hover {
+  background-color: #3e3e3e;
+}
+
+.song-item.active {
+  background-color: #1db954;
+  color: black;
+  font-weight: bold;
+}
+
+.active-player {
+  text-align: center;
+}
+
+.vinyl-disc {
+  font-size: 40px;
+  animation: spin 4s linear infinite;
+  margin-bottom: 15px;
+}
+
+.current-title {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.audio-widget {
+  width: 100%;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
