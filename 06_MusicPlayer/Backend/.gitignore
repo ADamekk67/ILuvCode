@@ -1,5 +1,5 @@
 # Music files
-Songs/
+*.mp3
 
 # Python
 __pycache__/

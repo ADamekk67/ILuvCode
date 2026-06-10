@@ -5,23 +5,35 @@ function App() {
   const [songs, setSongs] = useState([]);
   const [currentSong, setCurrentSong] = useState(null);
 
-  // Backend URL (FastAPI default port is 8000)
-  const BACKEND_URL = "http://127.0.0.1:8000";
+  // Backend URL - During dev, use relative path to go through Vite proxy
+  // In production, use VITE_BACKEND_URL env variable or direct URL
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? "" : "http://127.0.0.1:8000");
 
   // 1. Fetch the song list from your Python backend when the app opens
   useEffect(() => {
-    fetch(`${BACKEND_URL}/songs`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.songs) setSongs(data.songs);
+    const songsUrl = `${BACKEND_URL}/songs`;
+    console.log("🎵 Fetching songs from:", songsUrl);
+    fetch(songsUrl)
+      .then(response => {
+        console.log("📡 Response status:", response.status);
+        return response.json();
       })
-      .catch(err => console.error("Could not fetch songs from backend:", err));
+      .then(data => {
+        console.log("📥 Data received:", data);
+        if (data.songs) {
+          console.log("✅ Songs loaded:", data.songs);
+          setSongs(data.songs);
+        } else {
+          console.warn("⚠️ No 'songs' property in response");
+        }
+      })
+      .catch(err => console.error("❌ Could not fetch songs from backend:", err));
   }, []);
 
   return (
     <div className="player-container">
       <header className="player-header">
-        <h1> Hazzard - Song Player</h1>
+        <h1> Hazzard - na zdraví ;-;</h1>
       </header>
 
       <main className="player-body">
